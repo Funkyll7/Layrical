@@ -15,7 +15,7 @@ const inj=n=>n==0?"Aujourd’hui":n==1?'Demain':'Dans '+n+' j';
 let S={items:[],tx:[],bud:{},ts:0,tab:'home',sel:TD,cy:+TD.slice(0,4),cm:+TD.slice(5,7)-1,by:+TD.slice(0,4),bm:+TD.slice(5,7)-1};
 let SYNC='local';const apply=o=>{S.items=o.items||[];S.tx=o.tx||[];S.bud=o.bud||{};S.ts=o.ts||0};try{const r=localStorage.getItem('agenda-perso');if(r)apply(JSON.parse(r))}catch(e){}
 const snap=()=>({items:S.items,tx:S.tx,bud:S.bud,ts:S.ts});
-const badge=()=>{$('#sy').textContent=SYNC=='ok'?'☁️ Synchronisé':SYNC=='sav'?'☁️ Envoi…':SYNC=='err'?'⚠️ Hors ligne':'📱 Local · synchro à régler'};
+let ERR='';const badge=()=>{const e=$('#sy');e.textContent=SYNC=='ok'?'☁️ Synchronisé':SYNC=='sav'?'☁️ Envoi…':SYNC=='err'?'⚠️ '+(ERR||'Hors ligne'):'📱 Local · touche pour régler la synchro';e.onclick=()=>gs();e.style.cursor='pointer'};
 const lsave=()=>{try{localStorage.setItem('agenda-perso',JSON.stringify(snap()))}catch(e){}};
 const save=()=>{S.ts=Date.now();lsave();if(GH.token&&GH.repo){SYNC='sav';badge();clearTimeout(tm);tm=setTimeout(push,1200)}};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -37,7 +37,7 @@ function home(){
  const ren=S.items.filter(i=>(i.type=='renouv'||i.type=='abo'))
   .map(i=>({i,s:next(i)})).filter(o=>diff(o.s)<=60&&diff(o.s)>=0).sort((a,b)=>a.s<b.s?-1:1);
  const tx=monthTx(+TD.slice(0,4),+TD.slice(5,7)-1),inc=tx.filter(t=>t.amt>0).reduce((a,t)=>a+t.amt,0),out=tx.filter(t=>t.amt<0).reduce((a,t)=>a+t.amt,0);
- return '<h1>Bonjour 👋</h1>'+alerts()+'<div class="sum"><div class="big"><small>Solde de '+MO[+TD.slice(5,7)-1]+'</small><b class="'+(inc+out>=0?'pos':'neg')+'">'+eur(inc+out)+'</b></div><div><small>Revenus</small><b>'+eur(inc)+'</b></div><div><small>Dépenses</small><b>'+eur(-out)+'</b></div></div>'
+ return '<h1>Bonjour 👋</h1>'+alerts()+'<div class="sum"><div class="big"><small>Solde de '+MO[+TD.slice(5,7)-1]+'</small><b class="'+(inc+out>=0?'pos':'neg')+'">'+eur(inc+out)+'</b></div><div><small>Revenus</small><b>'+eur(inc)+'</b></div><div><small>Dépenses</small><b>'+eur(Math.abs(out))+'</b></div></div>'
  +'<h2>À surveiller (60 jours)</h2><div class="card">'+(ren.length?ren.map(o=>itemRow(o.i,o.s)).join(''):'<div class="empty">Aucune échéance proche.</div>')+'</div>'
  +'<h2>Les 30 prochains jours</h2><div class="card">'+(ev.length?ev.map(e=>e.h?holRow(e.s,e.h):itemRow(e.it,e.s)).join(''):'<div class="empty">Rien de prévu. Appuie sur + pour ajouter.</div>')+'</div><h2>Données</h2><div class="card"><div class="row"><div class="t"><b>Sauvegarde</b><small>Exporter ou importer tout en JSON</small></div><button class="pill" style="border:0" onclick="bk()">Ouvrir</button></div><div class="row"><div class="t"><b>Synchro GitHub</b><small>Dépôt privé et token</small></div><button class="pill" style="border:0" onclick="gs()">Régler</button></div></div>'}
 function agenda(){
