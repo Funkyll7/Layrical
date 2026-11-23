@@ -13,6 +13,8 @@
 <div id="sy"></div><main id="app"></main>
 <button class="fab" id="fab" aria-label="Ajouter">+</button>
 <nav id="nav"></nav>
+<aside id="np" aria-label="Bloc-notes"><h2>Bloc-notes</h2><textarea class="np-ta" placeholder="Tes notes, listes, idées…" oninput="noteIn(this.value)"></textarea><small class="np-st">Enregistré automatiquement</small></aside>
+<button class="npb" type="button" aria-label="Ouvrir le bloc-notes" onclick="noteF()">📝</button>
 <div id="m" role="dialog" aria-modal="true"><div class="sheet"><button class="mx" type="button" aria-label="Fermer" onclick="closeF()">✕</button><div id="sh"></div></div></div>
 <script src="assets/js/app.js"></script>
 <script src="assets/js/sync.js"></script>

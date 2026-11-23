@@ -14,8 +14,8 @@ const dl=s=>P(s).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month
 const diff=s=>Math.round((P(s)-P(TD))/864e5);
 const inj=n=>n==0?"Aujourd’hui":n==1?'Demain':'Dans '+n+' j';
 let S={items:[],tx:[],debts:[],rec:[],bal:null,bud:{},ts:0,tab:'home',sel:TD,cy:+TD.slice(0,4),cm:+TD.slice(5,7)-1,by:+TD.slice(0,4),bm:+TD.slice(5,7)-1};
-let SYNC='local';const apply=o=>{S.items=o.items||[];S.tx=o.tx||[];S.debts=o.debts||[];S.rec=o.rec||[];S.bal=o.bal||null;S.bud=o.bud||{};S.ts=o.ts||0};try{const r=localStorage.getItem('agenda-perso');if(r)apply(JSON.parse(r))}catch(e){}
-const snap=()=>({items:S.items,tx:S.tx,debts:S.debts,rec:S.rec,bal:S.bal,bud:S.bud,ts:S.ts});
+let SYNC='local';const apply=o=>{S.items=o.items||[];S.tx=o.tx||[];S.debts=o.debts||[];S.rec=o.rec||[];S.bal=o.bal||null;S.notes=o.notes||'';S.bud=o.bud||{};S.ts=o.ts||0};try{const r=localStorage.getItem('agenda-perso');if(r)apply(JSON.parse(r))}catch(e){}
+const snap=()=>({items:S.items,tx:S.tx,debts:S.debts,rec:S.rec,bal:S.bal,notes:S.notes||'',bud:S.bud,ts:S.ts});
 let ERR='';const badge=()=>{const e=$('#sy');e.textContent=SYNC=='ok'?'☁️ Synchronisé':SYNC=='sav'?'☁️ Envoi…':SYNC=='err'?'⚠️ '+(ERR||'Hors ligne'):'📱 Local · touche pour régler la synchro';e.onclick=()=>gs();e.style.cursor='pointer'};
 const lsave=()=>{try{localStorage.setItem('agenda-perso',JSON.stringify(snap()))}catch(e){}};
 const save=()=>{S.ts=Date.now();lsave();if(GH.token&&GH.repo){SYNC='sav';badge();clearTimeout(tm);tm=setTimeout(push,1200)}};
@@ -96,9 +96,14 @@ function budget(){
 function rappels(){
  const l=S.items.filter(i=>i.type=='renouv').map(i=>({i,s:next(i)})).sort((a,b)=>a.s<b.s?-1:1);
  return '<h1>Échéances</h1><p style="color:var(--mu);margin:-6px 0 6px;font-size:14px">Carte d’identité, passeport, permis, assurances : rouge sous 30 jours, orange sous 90.</p><div class="card">'+(l.length?l.map(o=>itemRow(o.i,o.s)).join(''):'<div class="empty">Ajoute un renouvellement avec +.</div>')+'</div>'}
+// Bloc-notes : panneau à droite sur grand écran, fenêtre sur téléphone ; enregistré automatiquement
+let NT=null;
+function noteIn(v){S.notes=v;document.querySelectorAll('.np-ta').forEach(t=>{if(t!==document.activeElement)t.value=v});document.querySelectorAll('.np-st').forEach(e=>e.textContent='Enregistrement…');clearTimeout(NT);NT=setTimeout(()=>{save();document.querySelectorAll('.np-st').forEach(e=>e.textContent='Enregistré')},600)}
+function noteSync(){document.querySelectorAll('.np-ta').forEach(t=>{if(t!==document.activeElement&&t.value!==(S.notes||''))t.value=S.notes||''})}
+function noteF(){sheet('<h2 style="margin-top:0">Bloc-notes</h2><textarea class="np-ta" rows="14" style="min-height:50vh" placeholder="Tes notes, listes, idées…" oninput="noteIn(this.value)">'+esc(S.notes||'')+'</textarea><small class="np-st" style="color:var(--mu);font-size:12px;display:block;margin-top:6px">Enregistré automatiquement</small>')}
 function render(){
  const t=S.tab;$('#app').innerHTML=t=='home'?home():t=='ag'?agenda():t=='bu'?budget():t=='de'?dettes():rappels();
- $('#nav').innerHTML=[['home','🏠','Accueil'],['ag','📅','Agenda'],['bu','💶','Budget'],['de','💳','Dettes'],['re','⏳','Échéances']].map(a=>'<button class="'+(t==a[0]?'on':'')+'" onclick="S.tab=\''+a[0]+'\';render();scrollTo(0,0)"><span>'+a[1]+'</span>'+a[2]+'</button>').join('')}
+ $('#nav').innerHTML=[['home','🏠','Accueil'],['ag','📅','Agenda'],['bu','💶','Budget'],['de','💳','Dettes'],['re','⏳','Échéances']].map(a=>'<button class="'+(t==a[0]?'on':'')+'" onclick="S.tab=\''+a[0]+'\';render();scrollTo(0,0)"><span>'+a[1]+'</span>'+a[2]+'</button>').join('');noteSync()}
 function $(s){return document.querySelector(s)}
 function mv(k,d){let m=S[k+'m']+d,y=S[k+'y'];if(m<0){m=11;y--}if(m>11){m=0;y++}S[k+'m']=m;S[k+'y']=y;render()}
 function delIt(id){if(confirm('Supprimer cet élément ?')){S.items=S.items.filter(i=>i.id!=id);save();render()}}

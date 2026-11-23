@@ -46,3 +46,14 @@ textarea{resize:vertical}
 .mx:hover{background:var(--ln)}
 #sh>h2:first-child{padding-right:44px;min-height:34px;display:flex;align-items:center;margin-bottom:10px}
 .seg4 button{min-width:20%}
+#np{display:none}
+.npb{position:fixed;left:16px;bottom:calc(78px + env(safe-area-inset-bottom,0px));width:48px;height:48px;border-radius:50%;border:1px solid var(--ln);background:var(--sf);font-size:22px;box-shadow:0 4px 14px rgba(0,0,0,.18);cursor:pointer;z-index:6}
+@media (min-width:1000px){
+ main{margin-left:max(16px,calc(50% - 460px))}
+ #np{display:flex;flex-direction:column;position:fixed;top:16px;right:24px;bottom:84px;width:340px;background:var(--sf);border:1px solid var(--ln);border-radius:14px;padding:14px;z-index:3}
+ #np h2{margin:0 0 10px}
+ #np textarea{flex:1;resize:none;line-height:1.5}
+ #np small{color:var(--mu);font-size:12px;margin-top:6px}
+ .npb{display:none}
+ #sy,.fab{right:388px}
+}

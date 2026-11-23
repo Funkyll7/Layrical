@@ -14,7 +14,7 @@ assets/img/             favicon.svg, icône SVG (pas de PNG)
 ```
 
 ## Modèle de données (`agenda-data.json`, dans le dépôt privé)
-`{ items, tx, debts, rec, bal, bud, ts }`
+`{ items, tx, debts, rec, bal, notes, bud, ts }`
 - `items[]` : `{id, type: rdv|anniv|travail|renouv|abo|credit, title, date, rep: none|yearly|monthly, amt, note, lead}`
   - paiement en plusieurs fois (`fois`) : `total`, `n` = nombre d'échéances, `amt` = total/n arrondi au centime ; la dernière échéance absorbe l'arrondi (`instAmt`).
   - crédit saisi avec le taux : `cap` = capital emprunté, `rate` = taux annuel (%), `n` = durée en mois ; mensualité = `mensu(cap, rate, n)` (amortissement classique), `total` = mensualité × n.
@@ -24,6 +24,7 @@ assets/img/             favicon.svg, icône SVG (pas de PNG)
 - `rec[]` : `{id, label, amt, cat, day, start, end?}` : revenus et dépenses **fixes**, répétés chaque mois ; les occurrences sont calculées (`recOcc`), jamais stockées. « Arrêter » pose `end`.
 - `bal` : `{amt, date, at}` : solde saisi à une date. Solde actuel = `bal.amt` + mouvements postérieurs + flux automatiques (`flowBetween` : fixes, mensualités de crédit, abonnements chiffrés). Voir `balNow()` / `balEom()`.
 - `bud` : plafond mensuel par catégorie, `{ "Courses": 400 }`
+- `notes` : texte du bloc-notes (panneau à droite ≥ 1000 px, bouton 📝 + fenêtre en dessous) ; `noteIn()` enregistre 0,6 s après la frappe.
 - `ts` : date de dernière modification (la plus récente gagne à la synchro)
 
 ## Où ajouter quoi
