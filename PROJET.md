@@ -14,11 +14,13 @@ assets/img/             favicon.svg, icône SVG (pas de PNG)
 ```
 
 ## Modèle de données (`agenda-data.json`, dans le dépôt privé)
-`{ items, tx, debts, bud, ts }`
+`{ items, tx, debts, rec, bal, bud, ts }`
 - `items[]` : `{id, type: rdv|anniv|travail|renouv|abo|credit, title, date, rep: none|yearly|monthly, amt, note, lead}`
   - crédit : `amt` = mensualité, `total` = montant total à rembourser, `date` = 1er prélèvement. Mensualités payées, reste et date de fin sont **calculés** (`credPaid`, `credLeft`, `credEnd`), jamais stockés.
 - `debts[]` : `{id, who, dir: owe (je dois) | owed (on me doit), amt, due, note, pays: [{a, d}]}` ; le reste dû = `amt` − somme des `pays`.
-- `tx[]` : `{id, label, date, amt (négatif = dépense), cat}`
+- `tx[]` : `{id, label, date, amt (négatif = dépense), cat, ct}` : mouvements **occasionnels** (une fois, date future possible) ; `ct` = horodatage de saisie
+- `rec[]` : `{id, label, amt, cat, day, start, end?}` : revenus et dépenses **fixes**, répétés chaque mois ; les occurrences sont calculées (`recOcc`), jamais stockées. « Arrêter » pose `end`.
+- `bal` : `{amt, date, at}` : solde saisi à une date. Solde actuel = `bal.amt` + mouvements postérieurs + flux automatiques (`flowBetween` : fixes, mensualités de crédit, abonnements chiffrés). Voir `balNow()` / `balEom()`.
 - `bud` : plafond mensuel par catégorie, `{ "Courses": 400 }`
 - `ts` : date de dernière modification (la plus récente gagne à la synchro)
 
