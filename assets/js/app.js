@@ -25,7 +25,7 @@ function hol(y){if(hc[y])return hc[y];const e=easter(y),add=n=>{const d=new Date
 return hc[y]={[f(1,1)]:"Jour de l’an",[add(1)]:'Lundi de Pâques',[f(5,1)]:'Fête du travail',[f(5,8)]:'Victoire 1945',[add(39)]:'Ascension',[add(50)]:'Lundi de Pentecôte',[f(7,14)]:'Fête nationale',[f(8,15)]:'Assomption',[f(11,1)]:'Toussaint',[f(11,11)]:'Armistice',[f(12,25)]:'Noël'}}
 const holName=s=>hol(+s.slice(0,4))[s];
 function dim(y,m){return new Date(y,m+1,0).getDate()}
-function occ(it,s){if(it.rep=='none')return it.date==s;if(it.date>s)return false;if(it.type=='credit'&&s>credEnd(it))return false;if(it.rep=='yearly')return it.date.slice(5)==s.slice(5);const d=+it.date.slice(8),y=+s.slice(0,4),m=+s.slice(5,7)-1;return +s.slice(8)==Math.min(d,dim(y,m))}
+function occ(it,s){if(it.rep=='none')return it.date==s;if(it.date>s)return false;if(it.type=='credit'&&s>credEnd(it))return false;if(it.rep=='yearly'){const md=it.date.slice(5);return (md=='02-29'&&dim(+s.slice(0,4),1)==28?'02-28':md)==s.slice(5)}const d=+it.date.slice(8),y=+s.slice(0,4),m=+s.slice(5,7)-1;return +s.slice(8)==Math.min(d,dim(y,m))}
 function addM(s,k){const y=+s.slice(0,4),m=+s.slice(5,7)-1+k,d=+s.slice(8),Y=y+Math.floor(m/12),M=((m%12)+12)%12;return Y+'-'+pad(M+1)+'-'+pad(Math.min(d,dim(Y,M)))}
 function credN(it){return Math.max(1,Math.ceil((+it.total||0)/(+it.amt||1)))}
 function credEnd(it){return addM(it.date,credN(it)-1)}
@@ -102,10 +102,11 @@ function delTx(id){S.tx=S.tx.filter(i=>i.id!=id);save();render()}
 let F={};
 function seg(k,opts,cur){return '<div class="seg">'+opts.map(o=>'<button type="button" class="'+(cur==o[0]?'on':'')+'" onclick="F.'+k+'=\''+o[0]+'\';showForm()">'+o[1]+'</button>').join('')+'</div>'}
 function openForm(){$('#sh').innerHTML='';F=S.tab=='de'?{k:'debt',dir:'owe',type:'credit',rep:'monthly'}:S.tab=='bu'?{k:'tx',kind:'out',freq:'once'}:{k:'it',type:S.tab=='re'?'renouv':'rdv',rep:'none'};showForm()}
+function annivSel(d){const dd=+(F.dd||d.slice(8)),mm=F.mm||d.slice(5,7);let a='',b='';for(let i=1;i<=31;i++)a+='<option value="'+i+'"'+(i==dd?' selected':'')+'>'+i+'</option>';MO.forEach((n,i)=>{const v=pad(i+1);b+='<option value="'+v+'"'+(v==mm?' selected':'')+'>'+n+'</option>'});return '<div style="display:flex;gap:8px"><select id="f_dd" aria-label="Jour" style="flex:1">'+a+'</select><select id="f_mm" aria-label="Mois" style="flex:2">'+b+'</select></div><small style="color:var(--mu);font-size:12px;display:block;margin-top:4px">Rappelé chaque année, pas besoin de l’année.</small>'}
 function showForm(){
- const v=id=>($('#'+id)||{}).value;if($('#f_t'))F.t=v('f_t'),F.d=v('f_d'),F.a=v('f_a'),F.n=v('f_n'),F.c=v('f_c'),F.l=v('f_l'),F.tot=v('f_tot');
+ const v=id=>($('#'+id)||{}).value;if($('#f_t'))F.t=v('f_t'),F.d=v('f_d'),F.a=v('f_a'),F.n=v('f_n'),F.c=v('f_c'),F.l=v('f_l'),F.tot=v('f_tot'),F.dd=v('f_dd')||F.dd,F.mm=v('f_mm')||F.mm;
  const d=F.d||(S.tab=='ag'?S.sel:TD);let h;
- if(S.tab=='de'&&F.k=='it')F.type='credit';if(F.k=='it'&&F.type=='credit')F.rep='monthly';
+ if(S.tab=='de'&&F.k=='it')F.type='credit';if(F.k=='it'&&F.type=='credit')F.rep='monthly';if(F.k=='it'&&F.type=='anniv'){F.rep='yearly';F._a=1}else if(F._a){F.rep='none';F._a=0}
  const top=S.tab=='de'?seg('k',[['debt','💸 Dette ou prêt'],['it','🏦 Crédit']],F.k):'';
  if(F.k=='debt'){h='<h2 style="margin-top:0">Nouvelle dette</h2>'+top+'<div style="height:8px"></div>'+seg('dir',[['owe','Je dois'],['owed','On me doit']],F.dir)+'<label>'+(F.dir=='owe'?'À qui ?':'Qui te doit ?')+'</label><input id="f_t" value="'+esc(F.t||'')+'" placeholder="Ex. Thomas">'+'<label>Montant total (€)</label><input id="f_a" type="number" inputmode="decimal" step="0.01" value="'+esc(F.a||'')+'">'+'<label>Date limite (facultatif)</label><input id="f_d" type="date" value="'+esc(F.d||'')+'">'+'<label>Note (facultatif)</label><input id="f_n" value="'+esc(F.n||'')+'">'}
  else if(F.k=='tx'){h='<h2 style="margin-top:0">Nouveau mouvement</h2>'+seg('kind',[['out','Dépense'],['in','Revenu']],F.kind)+'<div style="height:8px"></div>'+seg('freq',[['once','Occasionnelle (une fois)'],['month','Fixe (chaque mois)']],F.freq)
@@ -114,15 +115,15 @@ function showForm(){
   +'<label>Catégorie</label><select id="f_c">'+CATS.map(c=>'<option'+(F.c==c?' selected':'')+'>'+c+'</option>').join('')+'</select>'}
  else{h=(S.tab=='de'?'<h2 style="margin-top:0">Nouveau crédit</h2>'+top:'<h2 style="margin-top:0">Nouvel élément</h2>'+seg('type',Object.entries(TY).map(e=>[e[0],e[1][2]+' '+e[1][0]]),F.type))
   +'<label>Titre</label><input id="f_t" value="'+esc(F.t||'')+'" placeholder="'+(F.type=='renouv'?'Ex. Carte d’identité':F.type=='anniv'?'Ex. Anniversaire de Léa':F.type=='abo'?'Ex. Netflix':F.type=='credit'?'Ex. Crédit auto':'Ex. Dentiste')+'">'
-  +'<label>'+(F.type=='renouv'?'Date d’expiration':F.type=='abo'?'Prochain paiement ou date de fin':F.type=='credit'?'Date du 1er prélèvement':'Date')+'</label><input id="f_d" type="date" value="'+d+'">'+(F.type=='credit'?'<small style="color:var(--mu);font-size:12px;display:block;margin-top:4px">Crédit déjà commencé ? Mets la date du tout premier prélèvement : les mensualités passées sont déduites automatiquement.</small>':'<label>Répétition</label>'+seg('rep',Object.entries(RP),F.rep))
+  +'<label>'+(F.type=='renouv'?'Date d’expiration':F.type=='abo'?'Prochain paiement ou date de fin':F.type=='credit'?'Date du 1er prélèvement':F.type=='anniv'?'Jour et mois':'Date')+'</label>'+(F.type=='anniv'?annivSel(d):'<input id="f_d" type="date" value="'+d+'">')+(F.type=='credit'?'<small style="color:var(--mu);font-size:12px;display:block;margin-top:4px">Crédit déjà commencé ? Mets la date du tout premier prélèvement : les mensualités passées sont déduites automatiquement.</small>':F.type=='anniv'?'':'<label>Répétition</label>'+seg('rep',Object.entries(RP),F.rep))
   +(F.type=='credit'?'<label>Mensualité (€)</label><input id="f_a" type="number" inputmode="decimal" step="0.01" value="'+esc(F.a||'')+'"><label>Montant total à rembourser (€)</label><input id="f_tot" type="number" inputmode="decimal" step="0.01" value="'+esc(F.tot||'')+'">':'')+(F.type=='abo'||F.type=='renouv'?'<label>Montant (€, facultatif)</label><input id="f_a" type="number" inputmode="decimal" step="0.01" value="'+esc(F.a||'')+'">':'')
   +'<label>Note (facultatif)</label><input id="f_n" value="'+esc(F.n||'')+'"><label>Me prévenir (jours avant)</label><input id="f_l" type="number" inputmode="numeric" value="'+esc(F.l||'')+'" placeholder="'+({renouv:30,abo:7,credit:3}[F.type]||2)+'">'}
  $('#sh').innerHTML=h+'<button class="go" onclick="submitF()">Enregistrer</button>';$('#m').classList.add('on')}
 function closeF(){$('#m').classList.remove('on')}
 function submitF(){
- const t=$('#f_t').value.trim(),d=$('#f_d').value,a=$('#f_a')?parseFloat($('#f_a').value):NaN;
+ const an=F.k=='it'&&F.type=='anniv',t=$('#f_t').value.trim(),d=an?'2000-'+$('#f_mm').value+'-'+pad(+$('#f_dd').value):$('#f_d').value,a=$('#f_a')?parseFloat($('#f_a').value):NaN;
  if(F.k=='debt'){if(!t){alert('Indique un nom.');return}if(!(a>0)){alert('Indique un montant positif.');return}S.debts.push({id:uid(),who:t,dir:F.dir,amt:a,due:d,note:$('#f_n').value.trim(),pays:[]})}
- else{if(!t||!d){alert('Indique un titre et une date.');return}
+ else{if(!t||!d){alert('Indique un titre et une date.');return}if(an&&+d.slice(8)>dim(2000,+d.slice(5,7)-1)){alert('Ce jour n’existe pas dans ce mois.');return}
  if(F.k=='tx'){if(isNaN(a)||a<=0){alert('Indique un montant positif.');return}const am=F.kind=='in'?a:-a,ca=F.kind=='in'?'Revenu':$('#f_c').value;if(F.freq=='month')S.rec.push({id:uid(),label:t,amt:am,cat:ca,day:+d.slice(8),start:d});else S.tx.push({id:uid(),label:t,date:d,amt:am,cat:ca,ct:Date.now()});S.by=+d.slice(0,4);S.bm=+d.slice(5,7)-1}
  else{const it={id:uid(),type:F.type,title:t,date:d,rep:F.rep,amt:isNaN(a)?'':a,note:$('#f_n').value.trim(),lead:$('#f_l').value};
   if(F.type=='credit'){const tot=parseFloat($('#f_tot').value);if(!(a>0)||!(tot>0)){alert('Indique la mensualité et le montant total.');return}if(tot<a){alert('Le montant total doit être au moins égal à la mensualité.');return}it.rep='monthly';it.total=tot}
