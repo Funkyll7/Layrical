@@ -13,7 +13,7 @@
 <div id="sy"></div><main id="app"></main>
 <button class="fab" id="fab" aria-label="Ajouter">+</button>
 <nav id="nav"></nav>
-<div id="m"><div class="sheet" id="sh"></div></div>
+<div id="m" role="dialog" aria-modal="true"><div class="sheet"><button class="mx" type="button" aria-label="Fermer" onclick="closeF()">✕</button><div id="sh"></div></div></div>
 <script src="assets/js/app.js"></script>
 <script src="assets/js/sync.js"></script>
 <script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))</script>
