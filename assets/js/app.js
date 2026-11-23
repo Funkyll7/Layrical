@@ -78,9 +78,9 @@ function mv(k,d){let m=S[k+'m']+d,y=S[k+'y'];if(m<0){m=11;y--}if(m>11){m=0;y++}S
 function delIt(id){if(confirm('Supprimer cet élément ?')){S.items=S.items.filter(i=>i.id!=id);save();render()}}
 function delTx(id){S.tx=S.tx.filter(i=>i.id!=id);save();render()}
 let F={};
-function seg(k,opts,cur){return '<div class="seg">'+opts.map(o=>'<button type="button" class="'+(cur==o[0]?'on':'')+'" onclick="F.'+k+'=\''+o[0]+'\';form()">'+o[1]+'</button>').join('')+'</div>'}
-function openForm(){$('#sh').innerHTML='';F=S.tab=='de'?{k:'debt',dir:'owe',type:'credit',rep:'monthly'}:S.tab=='bu'?{k:'tx',kind:'out'}:{k:'it',type:S.tab=='re'?'renouv':'rdv',rep:'none'};form()}
-function form(){
+function seg(k,opts,cur){return '<div class="seg">'+opts.map(o=>'<button type="button" class="'+(cur==o[0]?'on':'')+'" onclick="F.'+k+'=\''+o[0]+'\';showForm()">'+o[1]+'</button>').join('')+'</div>'}
+function openForm(){$('#sh').innerHTML='';F=S.tab=='de'?{k:'debt',dir:'owe',type:'credit',rep:'monthly'}:S.tab=='bu'?{k:'tx',kind:'out'}:{k:'it',type:S.tab=='re'?'renouv':'rdv',rep:'none'};showForm()}
+function showForm(){
  const v=id=>($('#'+id)||{}).value;if($('#f_t'))F.t=v('f_t'),F.d=v('f_d'),F.a=v('f_a'),F.n=v('f_n'),F.c=v('f_c'),F.l=v('f_l'),F.tot=v('f_tot');
  const d=F.d||(S.tab=='ag'?S.sel:TD);let h;
  if(S.tab=='de'&&F.k=='it')F.type='credit';if(F.k=='it'&&F.type=='credit')F.rep='monthly';
