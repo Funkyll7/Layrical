@@ -75,7 +75,7 @@ function home(){
  return '<h1>Bonjour 👋</h1>'+alerts()+'<div class="sum">'+balCard()+'<div><small>Revenus de '+MO[+TD.slice(5,7)-1]+'</small><b>'+eur(inc)+'</b></div><div><small>Dépenses de '+MO[+TD.slice(5,7)-1]+'</small><b>'+eur(Math.abs(out))+'</b></div></div>'+fcCard()
  +'<h2>À surveiller (60 jours)</h2><div class="card">'+(ren.length?ren.map(o=>itemRow(o.i,o.s)).join(''):'<div class="empty">Aucune échéance proche.</div>')+'</div>'
  +'<h2>Les 30 prochains jours</h2><div class="card">'+(ev.length?ev.map(e=>e.h?holRow(e.s,e.h):e.dt?debtRow(e.dt):itemRow(e.it,e.s)).join(''):'<div class="empty">Rien de prévu. Appuie sur + pour ajouter.</div>')+'</div><h2>Données</h2><div class="card"><div class="row"><div class="t"><b>Sauvegarde</b><small>Exporter ou importer tout en JSON</small></div><button class="pill" style="border:0" onclick="bk()">Ouvrir</button></div><div class="row"><div class="t"><b>Synchro GitHub</b><small>Dépôt privé et token</small></div><button class="pill" style="border:0" onclick="gs()">Régler</button></div></div>'}
-function agenda(){
+function agenda(){if(wideAg())return bigAgenda();
  const y=S.cy,m=S.cm,first=new Date(y,m,1,12),off=(first.getDay()+6)%7,dim=new Date(y,m+1,0).getDate();
  let g=['L','M','M','J','V','S','D'].map(d=>'<div class="h">'+d+'</div>').join('');
  for(let i=0;i<off;i++)g+='<div></div>';
@@ -316,7 +316,32 @@ function saveSal(){const a=parseFloat($('#s_a').value),day=+$('#s_d').value,od=p
  const y=+TD.slice(0,4),m=+TD.slice(5,7)-1;let st=y+'-'+pad(m+1)+'-'+pad(Math.min(day,dim(y,m)));if(st>TD){const Y=m?y:y-1,M=m?m-1:11;st=Y+'-'+pad(M+1)+'-'+pad(Math.min(day,dim(Y,M)))}
  const r=salRec();if(r){r.amt=a;r.day=day;if(st<r.start)r.start=st}else S.rec.push({id:uid(),sal:1,label:'Salaire',amt:a,cat:'Revenu',day,start:st});save();closeF();render()}
 function stopSal(){const r=salRec();if(r&&confirm('Arrêter ce salaire ? Les mois passés restent dans l’historique.')){r.end=TD;save();closeF();render()}}
-function render(){
+const wideAg=()=>S.tab=='ag'&&innerWidth>=1000;
+// tout ce qui se passe un jour donné, avec un émoji
+function dayEvents(s){const y=+s.slice(0,4),m=+s.slice(5,7)-1,L=[],h=holName(s);
+ if(h)L.push({e:'🇫🇷',t:h,k:'ho'});
+ on(s).forEach(i=>{const a=isInst(i)?instAmt(i,s):+i.amt||0;L.push({e:TY[i.type][2],t:i.title,a:a?-a:null,k:i.type,id:i.id})});
+ S.rec.forEach(r=>{const o=recOcc(r,y,m);if(o&&o.date==s)L.push({e:r.sal?'💼':o.amt>0?'💶':'📋',t:r.label,a:o.amt,k:'rec',id:r.id})});
+ S.tx.filter(t=>t.date==s).forEach(t=>L.push({e:t.amt>0?'💶':t.cat=='Épargne'?'🐷':'📌',t:t.label,a:t.amt,k:'tx',id:t.id}));
+ dueOn(s).forEach(d=>L.push({e:'💸',t:(d.dir=='owe'?'À rembourser : ':'À recevoir : ')+d.who,a:d.dir=='owe'?-dLeft(d):dLeft(d),k:'debt',id:d.id}));
+ return L}
+function bigAgenda(){const y=S.cy,m=S.cm,first=new Date(y,m,1,12),off=(first.getDay()+6)%7,nd=new Date(y,m+1,0).getDate(),weeks=Math.ceil((off+nd)/7);let tot=0,g='';
+ ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'].forEach(d=>g+='<div class="bc-h">'+d+'</div>');
+ for(let i=0;i<off;i++)g+='<div class="bc-x"></div>';
+ for(let d=1;d<=nd;d++){const s=y+'-'+pad(m+1)+'-'+pad(d),L=dayEvents(s),wd=(off+d-1)%7;L.forEach(e=>{if(e.a&&e.k!='ho')tot+=e.a});
+  const sh=L.slice(0,4).map(e=>'<span class="ev ev-'+e.k+'" title="'+esc(e.t+(e.a?' · '+eur(e.a):''))+'">'+e.e+' <span class="ev-t">'+esc(e.t)+'</span>'+(e.a?'<b class="'+(e.a>0?'pos':'')+'">'+(e.a>0?'+':'')+fmtE(e.a)+'</b>':'')+'</span>').join('')+(L.length>4?'<span class="ev ev-more">+'+(L.length-4)+' autre'+(L.length>5?'s':'')+'</span>':'');
+  g+='<button class="bc-d'+(s==TD?' bc-td':'')+(s==S.sel?' bc-sel':'')+(wd>4?' bc-we':'')+(holName(s)?' bc-ho':'')+'" onclick="S.sel=\''+s+'\';render()" aria-label="'+esc(dl(s)+(L.length?' : '+L.map(e=>e.t).join(', '):''))+'"><span class="bc-n">'+d+'</span>'+sh+'</button>'}
+ for(let i=(off+nd)%7;i&&i<7;i++)g+='<div class="bc-x"></div>';
+ const L=dayEvents(S.sel),ev=on(S.sel),dd=dueOn(S.sel);
+ return '<div class="bc-top"><h1>Agenda</h1><div class="nv"><button onclick="mv(\'c\',-1)" aria-label="Mois précédent">‹</button><b>'+MO[m]+' '+y+'</b><button onclick="mv(\'c\',1)" aria-label="Mois suivant">›</button></div><button class="pill bc-auj" style="border:0;cursor:pointer" onclick="S.cy=+TD.slice(0,4);S.cm=+TD.slice(5,7)-1;S.sel=TD;render()">Aujourd’hui</button><span class="bc-sum">Mouvements du mois : <b class="'+(tot>=0?'pos':'neg')+'">'+(tot>=0?'+':'')+eur(tot)+'</b></span></div>'
+ +'<div class="bc" style="--w:'+weeks+'">'+g+'</div>'
+ +'<h2>'+P(S.sel).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'</h2><div class="card">'
+ +(holName(S.sel)?'<div class="row"><span class="dot" style="background:#0e9f6e"></span><div class="t"><b>🇫🇷 '+esc(holName(S.sel))+'</b><small>Jour férié</small></div></div>':'')
+ +ev.map(i=>itemRow(i,S.sel)).join('')+dd.map(x=>debtRow(x)).join('')
+ +L.filter(e=>e.k=='rec'||e.k=='tx').map(e=>'<div class="row"><div class="t"><b>'+e.e+' '+esc(e.t)+'</b><small>'+(e.k=='rec'?'Revenu ou dépense fixe':'Mouvement')+'</small></div><b class="'+(e.a>0?'pos':'')+'" style="flex:none">'+(e.a>0?'+':'')+eur(e.a)+'</b></div>').join('')
+ +(!L.length?'<div class="empty">Rien ce jour-là. Appuie sur + pour ajouter quelque chose.</div>':'')+'</div>'}
+let RZ=null;addEventListener('resize',()=>{clearTimeout(RZ);RZ=setTimeout(()=>{if(S.tab=='ag')render()},150)});
+function render(){document.body.classList.toggle('wide',wideAg());
  const t=S.tab;$('#app').innerHTML=t=='home'?home():t=='ag'?agenda():t=='bu'?budget():t=='de'?dettes():t=='ep'?epargne():rappels();
  $('#nav').innerHTML=[['home','🏠','Accueil'],['ag','📅','Agenda'],['bu','💶','Budget'],['de','💳','Dettes'],['ep','🐷','Épargne'],['re','⏳','Échéances']].map(a=>'<button class="'+(t==a[0]?'on':'')+'" onclick="S.tab=\''+a[0]+'\';render();scrollTo(0,0)"><span>'+a[1]+'</span>'+a[2]+'</button>').join('');noteSync();planRender()}
 function $(s){return document.querySelector(s)}
