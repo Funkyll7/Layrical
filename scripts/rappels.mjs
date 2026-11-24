@@ -19,9 +19,12 @@ if (!r.ok) { console.error('Lecture du dépôt de données impossible : HTTP ' +
 const S = await r.json();
 if (!S.pushKey?.pub || !(S.subs || []).length) { console.log('Aucun appareil inscrit aux notifications.'); process.exit(0); }
 
-const now = parisNow();
+// le passage de 6 h 30 (cron dédié) n'envoie que le résumé avancé
+const early = !!process.env.SCHEDULE && process.env.SCHEDULE.startsWith('30 ');
+const now = { ...parisNow(), early };
+if (early && now.H != 6) { console.log('Passage de 6 h 30 : pas la bonne heure (Paris ' + now.H + ' h).'); process.exit(0); }
 const msgs = TEST === 'true' ? [{ title: '🔔 Test depuis GitHub', body: 'Les rappels arrivent bien sur cet appareil.', tag: 'test' }] : reminders(S, now);
-console.log(`Paris ${now.H} h : ${msgs.length} notification(s) pour ${S.subs.length} appareil(s).`);
+console.log(`Paris ${now.H} h${early ? ' 30 (avancé)' : ''} : ${msgs.length} notification(s) pour ${S.subs.length} appareil(s).`);
 if (!msgs.length) process.exit(0);
 
 webpush.setVapidDetails('https://funkyll7.github.io/Layrical/', S.pushKey.pub, VAPID_PRIVATE_KEY);

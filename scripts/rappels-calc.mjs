@@ -30,22 +30,30 @@ export function occ(it, s) {
 }
 export function nextOcc(it, TD) { const d = P(TD); for (let k = 0; k < 400; k++) { const s = iso(d); if (occ(it, s)) return s; d.setUTCDate(d.getUTCDate() + 1); } return null; }
 
-// now = { TD: 'AAAA-MM-JJ', H: heure 0-23 } à Paris
+const tomorrow = (TD) => { const d = P(TD); d.setUTCDate(d.getUTCDate() + 1); return iso(d); };
+const label = (it, s) => { const v = isInst(it) ? payOn(it, s) : +it.amt, amt = isInst(it) || it.type == 'renouv' || it.type == 'travail' ? (v ? ' (' + eur(v) + ')' : '') : ''; return EMO[it.type] + ' ' + it.title + (it.time ? ' à ' + it.time : '') + amt; };
+const owed = (d) => (+d.amt) - (d.pays || []).reduce((a, p) => a + (+p.a), 0);
+// un rendez-vous ou rappel avant 9 h aujourd'hui avance le résumé du matin à 6 h 30
+export const EARLY_BEFORE = '09:00';
+export function hasEarly(S, TD) { return (S.items || []).some((i) => (i.type == 'rdv' || i.type == 'rappel') && i.time && i.time < EARLY_BEFORE && occ(i, TD)); }
+
+// now = { TD: 'AAAA-MM-JJ', H: heure 0-23 à Paris, early: true pour le passage de 6 h 30 }
 export function reminders(S, now) {
-  const { TD, H } = now, out = [], hour = S.notif && S.notif.hour != null ? +S.notif.hour : 8;
+  const { TD, H, early } = now, out = [], hour = S.notif && S.notif.hour != null ? +S.notif.hour : 8,
+    eve = S.notif && S.notif.eve != null ? +S.notif.eve : 20;
   const items = (S.items || []).filter((i) => i.type != 'abo' && i.date && EMO[i.type]);
-  // 1) résumé du matin
-  if (H == hour) {
+  // 1) résumé du matin : à l'heure choisie, ou à 6 h 30 s'il y a un rendez-vous avant 9 h (et que l'heure choisie est plus tard)
+  const shift = hour >= 7 && hasEarly(S, TD);
+  if (early ? shift : H == hour && !shift) {
     const today = [], soon = [];
     for (const it of items) {
       const s = nextOcc(it, TD); if (!s) continue;
       const n = days(TD, s), L = it.lead !== undefined && it.lead !== '' ? +it.lead : (LEAD[it.type] ?? 2);
-      const v = isInst(it) ? payOn(it, s) : +it.amt, amt = isInst(it) || it.type == 'renouv' || it.type == 'travail' ? (v ? ' (' + eur(v) + ')' : '') : '';
-      const lab = EMO[it.type] + ' ' + it.title + (it.time ? ' à ' + it.time : '') + amt;
-      if (n == 0) today.push(lab); else if (L > 0 && n == L) soon.push((n == 1 ? 'Demain' : 'Dans ' + n + ' j') + ' : ' + lab);
+      // la veille est couverte par le rappel du soir
+      if (n == 0) today.push(label(it, s)); else if (L > 1 && n == L) soon.push('Dans ' + n + ' j : ' + label(it, s));
     }
     for (const d of S.debts || []) {
-      const left = (+d.amt) - (d.pays || []).reduce((a, p) => a + (+p.a), 0);
+      const left = owed(d);
       if (d.dir == 'owe' && d.due && left > 0.005) { const n = days(TD, d.due); if (n == 0) today.push('💸 Rembourser ' + d.who + ' (' + eur(left) + ')'); else if (n == 7) soon.push('Dans 7 j : 💸 rembourser ' + d.who + ' (' + eur(left) + ')'); }
     }
     if (today.length || soon.length) {
@@ -53,7 +61,14 @@ export function reminders(S, now) {
       out.push({ title: today.length ? '📅 Aujourd’hui : ' + today.length + ' chose' + (today.length > 1 ? 's' : '') + ' à ne pas oublier' : '📅 À venir bientôt', body: lines.slice(0, 8).join('\n') + (lines.length > 8 ? '\n… et ' + (lines.length - 8) + ' autre(s)' : ''), tag: 'resume-' + TD });
     }
   }
-  // 2) rendez-vous et rappels avec une heure : environ 1 h avant
+  if (early) return out;
+  // 2) la veille au soir : tout ce qui a lieu demain
+  if (H == eve) {
+    const T = tomorrow(TD), list = items.filter((it) => occ(it, T)).sort((a, b) => (a.time || '99').localeCompare(b.time || '99')).map((it) => label(it, T));
+    for (const d of S.debts || []) if (d.dir == 'owe' && d.due == T && owed(d) > 0.005) list.push('💸 Rembourser ' + d.who + ' (' + eur(owed(d)) + ')');
+    if (list.length) out.push({ title: '🌙 Demain : ' + list.length + ' chose' + (list.length > 1 ? 's' : '') + ' de prévue' + (list.length > 1 ? 's' : ''), body: list.slice(0, 8).join('\n') + (list.length > 8 ? '\n… et ' + (list.length - 8) + ' autre(s)' : ''), tag: 'veille-' + T });
+  }
+  // 3) rendez-vous et rappels avec une heure : environ 1 h avant
   for (const it of items) {
     if (!it.time || !occ(it, TD)) continue;
     const h = +it.time.slice(0, 2);

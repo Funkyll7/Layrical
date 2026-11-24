@@ -2,7 +2,8 @@ name: Rappels
 
 on:
   schedule:
-    - cron: '5 * * * *'   # chaque heure (résumé du matin + rappels 1 h avant)
+    - cron: '5 * * * *'     # chaque heure (résumé du matin, veille au soir, rappels 1 h avant)
+    - cron: '30 4,5 * * *'  # 6 h 30 à Paris (été / hiver) : résumé avancé si rendez-vous avant 9 h
   workflow_dispatch:
     inputs:
       test:
@@ -27,3 +28,4 @@ jobs:
           DATA_TOKEN: ${{ secrets.DATA_TOKEN }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           TEST: ${{ inputs.test }}
+          SCHEDULE: ${{ github.event.schedule }}

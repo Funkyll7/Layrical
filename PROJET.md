@@ -45,6 +45,7 @@ assets/img/             favicon.svg, icône SVG (pas de PNG)
 
 ## Notifications
 L'appli crée une paire de clés VAPID (`genKeys`) : la publique est enregistrée dans les données (`pushKey`), la privée est copiée par toi dans le secret GitHub `VAPID_PRIVATE_KEY`. Chaque appareil s'inscrit (`subNotif`) et son abonnement est stocké dans `subs`. `sw.js` affiche les notifications reçues. Secrets nécessaires dans Layrical : `VAPID_PRIVATE_KEY` et `DATA_TOKEN`.
+Règles d'envoi (`scripts/rappels-calc.mjs`) : résumé du matin à `notif.hour` (8 h), avancé à 6 h 30 s'il y a un rendez-vous ou rappel avant 9 h ce jour-là (cron dédié `30 4,5 * * *`) ; rappel de la veille à `notif.eve` (20 h) listant tout ce qui a lieu le lendemain ; rappel 1 h avant chaque rendez-vous/rappel qui a une heure.
 
 ## Coûts de renouvellement
 `COUTS` dans app.js : coûts connus (passeport 86 €, CNI gratuite…) proposés dans Échéances et ajoutés automatiquement à un nouveau renouvellement.
