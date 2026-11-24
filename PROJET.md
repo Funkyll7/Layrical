@@ -40,6 +40,9 @@ assets/img/             favicon.svg, icône SVG (pas de PNG)
 - `notes` : texte du bloc-notes (panneau à droite ≥ 1000 px, bouton 📝 + fenêtre en dessous) ; `noteIn()` enregistre 0,6 s après la frappe.
 - `ts` : date de dernière modification (la plus récente gagne à la synchro)
 
+## Graphiques
+Faits main en SVG/HTML (aucune bibliothèque) dans app.js, section « Graphiques » : `lineChart` (solde jour par jour + réticule), `hbars` (barres classées, une teinte), `segBar` (où va l'argent), `colChart` (revenus/dépenses par mois, mois à venir en clair). Couleurs `--c1…--c6` (palette validée daltonisme, clair et sombre) dans app.css ; infobulle commune via l'attribut `data-tip`.
+
 ## Où ajouter quoi
 - Nouveau type d'élément : `TY` dans app.js, puis `alerts()` pour son délai d'alerte.
 - Onglet Dettes : `dettes()`, `credRow()`, `debtRow()`, `payF()` / `savePay()` dans app.js.

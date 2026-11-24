@@ -86,7 +86,7 @@ function agenda(){
  +'<h2>'+P(S.sel).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+'</h2><div class="card">'+(h?'<div class="row"><span class="dot" style="background:#0e9f6e"></span><div class="t"><b>🇫🇷 '+esc(h)+'</b><small>Jour férié</small></div></div>':'')+ev.map(i=>itemRow(i)).join('')+dd.map(x=>debtRow(x)).join('')+(!h&&!ev.length&&!dd.length?'<div class="empty">Rien ce jour-là.</div>':'')+'</div>'}
 function quotMonthly(){return S.items.filter(i=>i.type=='travail'&&+i.amt>0&&repMonths(i.rep)).reduce((a,i)=>a+(+i.amt)/repMonths(i.rep),0)}
 function quotList(){const l=S.items.filter(i=>i.type=='travail').sort((a,b)=>a.title.localeCompare(b.title));return l.length?'<h2>Quotidien · '+eur(quotMonthly())+' par mois</h2><div class="card">'+l.map(i=>itemRow(i,i.date?next(i):undefined)).join('')+'</div>':''}
-function aboList(){const l=S.items.filter(i=>i.type=='abo').sort((a,b)=>a.title.localeCompare(b.title));return l.length?'<h2>Abonnements</h2><div class="card">'+l.map(i=>itemRow(i)).join('')+'</div>':''}
+function aboList(){const l=S.items.filter(i=>i.type=='abo').sort((a,b)=>a.title.localeCompare(b.title));return l.length?'<h2>Abonnements · '+eur(subMonthly())+' par mois</h2><div class="card fc" style="margin-bottom:10px">'+hbars(l.map(i=>[esc(i.title),(+i.amt||0)/(repMonths(i.rep)||12),eur(+i.amt||0)+' · '+(RP[i.rep]||'').toLowerCase()]).sort((a,b)=>b[1]-a[1]))+'<small>Coût ramené au mois (un abonnement annuel compte pour 1/12).</small></div><div class="card">'+l.map(i=>itemRow(i)).join('')+'</div>':''}
 function recList(){const l=S.rec.filter(r=>!r.end||r.end>=TD);return l.length?'<h2>Revenus et dépenses fixes</h2><div class="card">'+l.map(r=>'<div class="row"><div class="t"><b>🔁 '+esc(r.label)+'</b><small>'+(r.amt>0?'+':'')+eur(r.amt)+' le '+r.day+' de chaque mois · '+r.cat+(r.start>TD?' · à partir du '+dl(r.start):'')+'</small></div><button class="x" aria-label="Modifier" onclick="openEdit(\'rec\',\''+r.id+'\')">✎</button><button class="pill" style="border:0;cursor:pointer" onclick="stopRec(\''+r.id+'\')">Arrêter</button></div>').join('')+'</div>':''}
 function budget(){
  const y=S.by,m=S.bm,tx=monthAll(y,m).sort((a,b)=>a.date<b.date?1:-1),inc=tx.filter(t=>t.amt>0).reduce((a,t)=>a+t.amt,0),out=-tx.filter(t=>t.amt<0).reduce((a,t)=>a+t.amt,0);
@@ -94,7 +94,7 @@ function budget(){
  CATS.forEach(c=>{if(S.bud[c]&&!(c in bc))bc[c]=0});const cats=Object.entries(bc).sort((a,b)=>b[1]-a[1]);
  return '<h1>Budget</h1><div class="nv"><button onclick="mv(\'b\',-1)" aria-label="Mois précédent">‹</button><b>'+MO[m]+' '+y+'</b><button onclick="mv(\'b\',1)" aria-label="Mois suivant">›</button></div>'
  +'<div class="sum">'+balCard()+'<div><small>Revenus du mois</small><b>'+eur(inc)+'</b></div><div><small>Dépenses du mois</small><b>'+eur(Math.abs(out))+'</b></div></div>'
- +'<p style="color:var(--mu);font-size:14px;margin:10px 2px 0">Bilan de '+MO[m]+' : <b class="'+(inc-out>=0?'pos':'neg')+'">'+(inc-out>=0?'+':'')+eur(inc-out)+'</b></p>'+fcCard()
+ +'<p style="color:var(--mu);font-size:14px;margin:10px 2px 0">Bilan de '+MO[m]+' : <b class="'+(inc-out>=0?'pos':'neg')+'">'+(inc-out>=0?'+':'')+eur(inc-out)+'</b></p>'+fcCard()+budgetCharts()
  +'<p style="color:var(--mu);font-size:14px;margin:10px 2px">Tes abonnements actifs coûtent environ <b style="color:var(--ink)">'+eur(subMonthly())+'</b> par mois.'+(credMonthly()?' Crédits et paiements en plusieurs fois : <b style="color:var(--ink)">'+eur(credMonthly())+'</b> par mois.':'')+'</p>'
  +(cats.length?'<h2>Dépenses par catégorie</h2><div class="card" style="padding:10px 14px">'+cats.map(catBar).join('')+'</div>':'')
  +'<button class="go" style="background:var(--acs);color:var(--ac);margin-top:12px" onclick="cap()">Fixer des plafonds par catégorie</button>'+recList()+quotList()+aboList()+'<h2>Mouvements de '+MO[m]+'</h2><div class="card">'+(tx.length?tx.map(txRow).join(''):'<div class="empty">Aucun mouvement. Appuie sur + pour en ajouter.</div>')+'</div>'}
@@ -179,6 +179,73 @@ function loanHTML(f){if(f.B===null)return '';const L=loanWatch(f);if(!L.length)r
    +(pep>0?'<li>reprends de l’argent dans ton épargne ('+eur(pep)+' disponibles)</li>':'')
    +'<li><b>appelle ta banque avant le '+dl(worst.d)+'</b> : demande un report d’échéance ou une hausse ponctuelle de ton découvert. C’est toujours mieux qu’un prélèvement de crédit rejeté.</li></ul>'}
  return '<div class="loanbox"><b>🔒 Crédits à payer en priorité</b><ul style="margin:6px 0 4px 18px;padding:0">'+li+'</ul>'+help+'</div>'}
+// ================= Graphiques (SVG / HTML faits main, sans bibliothèque) =================
+const fmtE=v=>Math.round(v).toLocaleString('fr-FR')+' €';
+const dShort=d=>P(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+function niceStep(x){const p=Math.pow(10,Math.floor(Math.log10(Math.max(x,1e-9)))),f=x/p;return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p}
+// infobulle commune : tout élément portant data-tip
+function tipShow(html,x,y){let t=document.getElementById('tip');if(!t){t=document.createElement('div');t.id='tip';t.setAttribute('role','tooltip');document.body.appendChild(t)}t.innerHTML=html;t.style.display='block';const w=t.offsetWidth,h=t.offsetHeight;t.style.left=Math.min(innerWidth-w-8,Math.max(8,x-w/2))+'px';t.style.top=(y-h-12<8?y+18:y-h-12)+'px'}
+function tipHide(){const t=document.getElementById('tip');if(t)t.style.display='none';document.querySelectorAll('svg.lc .lc-x').forEach(x=>x.setAttribute('visibility','hidden'))}
+document.addEventListener('pointerover',e=>{const el=e.target.closest&&e.target.closest('[data-tip]');if(el){const r=el.getBoundingClientRect();tipShow(el.dataset.tip,r.left+r.width/2,r.top)}});
+document.addEventListener('pointerout',e=>{const el=e.target.closest&&e.target.closest('[data-tip]');if(el&&!el.contains(e.relatedTarget))tipHide()});
+// courbe : réticule + infobulle
+const LC={};let LCN=0;
+function lcMove(e){const svg=e.target.closest&&e.target.closest('svg.lc');if(!svg)return;const c=LC[svg.id];if(!c)return;const r=svg.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*c.W;let i=Math.round((x-c.pl)/c.dx);i=Math.max(0,Math.min(c.pts.length-1,i));const p=c.pts[i],X=c.X(i),Y=c.Y(p.v);
+ const g=svg.querySelector('.lc-x');g.setAttribute('visibility','visible');g.querySelector('line').setAttribute('x1',X);g.querySelector('line').setAttribute('x2',X);const ci=g.querySelector('circle');ci.setAttribute('cx',X);ci.setAttribute('cy',Y);
+ tipShow('<b>'+dl(p.d)+'</b>'+(p.sal?' · 💼 salaire':'')+'<br>Solde : <b class="'+(p.v<c.floor?'neg':'')+'">'+eur(p.v)+'</b>'+(p.ev&&p.ev.length?'<div class="tip-ev">'+p.ev.map(x=>'<div><span>'+esc(x[0])+'</span><b>'+(x[1]>0?'+':'')+eur(x[1])+'</b></div>').join('')+'</div>':''),r.left+X/c.W*r.width,r.top+Y/c.H*r.height)}
+document.addEventListener('pointermove',lcMove);document.addEventListener('pointerdown',lcMove);
+document.addEventListener('pointerout',e=>{const svg=e.target.closest&&e.target.closest('svg.lc');if(svg&&!svg.contains(e.relatedTarget))tipHide()});
+function lineChart(pts,o){const id='lc'+(++LCN),W=360,H=200,pl=44,pr=12,pt=16,pb=24,n=pts.length,floor=o.floor;
+ const vs=pts.map(p=>p.v).concat([0,floor]),mx=Math.max(...vs),mn=Math.min(...vs),span=(mx-mn)||100,st=niceStep(span/3),top=Math.ceil((mx+span*0.06)/st)*st,bot=Math.floor((mn-span*0.06)/st)*st;
+ const dx=n>1?(W-pl-pr)/(n-1):0,X=i=>pl+i*dx,Y=v=>pt+(top-v)*(H-pt-pb)/((top-bot)||1);LC[id]={pts,W,H,pl,dx,X,Y,floor};
+ let g='';for(let v=bot;v<=top+1e-6;v+=st)g+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" class="'+(Math.abs(v)<1e-6?'ax':'gr')+'"/><text x="'+(pl-6)+'" y="'+(Y(v)+3.5)+'" class="tk" text-anchor="end">'+fmtE(v)+'</text>';
+ const lim='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+Y(floor)+'" y2="'+Y(floor)+'" class="lim"/><text x="'+(pl+4)+'" y="'+(Y(floor)+11)+'" class="limt" text-anchor="start">⚠ limite '+fmtE(floor)+'</text>';
+ const path=pts.map((p,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(p.v).toFixed(1)).join(' '),area=path+' L'+X(n-1).toFixed(1)+' '+Y(Math.max(bot,Math.min(top,0)))+' L'+X(0)+' '+Y(Math.max(bot,Math.min(top,0)))+' Z';
+ const marks=pts.map((p,i)=>p.ev&&p.ev.length&&i?'<circle cx="'+X(i)+'" cy="'+Y(p.v)+'" r="4" class="mk'+(p.ev.some(x=>x[0].startsWith('🔒'))?' mk-l':'')+(p.sal?' mk-s':'')+'"/>':'').join('');
+ const li=o.low?pts.findIndex(p=>p.d==o.low[0]):-1,lowL=li>0?'<text x="'+Math.min(W-pr-2,Math.max(pl+30,X(li)))+'" y="'+(Y(pts[li].v)+14)+'" class="lb" text-anchor="middle">point bas '+fmtE(pts[li].v)+'</text>':'';
+ const xl=[0,Math.floor((n-1)/2),n-1].filter((v,i,a)=>a.indexOf(v)==i).map((i,k,a)=>'<text x="'+X(i)+'" y="'+(H-6)+'" class="tk" text-anchor="'+(k==0?'start':k==a.length-1?'end':'middle')+'">'+(i==0?'aujourd’hui':pts[i].sal?'💼 '+dShort(pts[i].d):dShort(pts[i].d))+'</text>').join('');
+ return '<svg class="lc" id="'+id+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Solde prévu jour par jour, de '+eur(pts[0].v)+' à '+eur(pts[n-1].v)+'">'+g+lim+'<path d="'+area+'" class="ar"/><path d="'+path+'" class="ln"/>'+marks+lowL+xl
+  +'<g class="lc-x" visibility="hidden"><line y1="'+pt+'" y2="'+(H-pb)+'" class="cx"/><circle r="5" class="cd"/></g><rect x="'+pl+'" y="0" width="'+(W-pl-pr)+'" height="'+H+'" fill="transparent"/></svg>'}
+// barres horizontales classées, une seule teinte
+function hbars(rows,o){o=o||{};const mx=Math.max(...rows.map(r=>r[1]),1e-9);return '<div class="hb">'+rows.map(r=>'<div class="hb-r" data-tip="'+esc('<b>'+r[0]+'</b><br>'+eur(r[1])+(o.total?' · '+Math.round(r[1]/o.total*100)+' %':'')+(r[2]?'<br>'+r[2]:''))+'"><span class="hb-l">'+r[0]+'</span><span class="hb-t"><i style="width:'+Math.max(1.5,r[1]/mx*100)+'%"></i></span><b>'+eur(r[1])+'</b></div>').join('')+'</div>'}
+// barre segmentée : un tout découpé en parts (couleur fixée par part)
+function segBar(parts){const tot=parts.reduce((a,p)=>a+Math.max(0,p[1]),0);if(tot<=0)return '';
+ return '<div class="sb">'+parts.map((p,k)=>p[1]>0.005?'<div class="sb-p" style="flex:'+p[1]+';background:var(--c'+(k+1)+')" data-tip="'+esc('<b>'+p[0]+'</b><br>'+eur(p[1])+' · '+Math.round(p[1]/tot*100)+' %')+'">'+(p[1]/tot>=0.11?'<span style="color:'+(k==3?'#0b0b0b':'#fff')+'">'+Math.round(p[1]/tot*100)+' %</span>':'')+'</div>':'').join('')+'</div>'
+ +'<div class="lg">'+parts.map((p,k)=>p[1]>0.005?'<div><i style="background:var(--c'+(k+1)+')"></i><span>'+p[0]+'</span><b>'+eur(p[1])+'</b><small>'+Math.round(p[1]/tot*100)+' %</small></div>':'').join('')+'</div>'}
+// colonnes groupées : revenus / dépenses par mois
+function colChart(G){const W=360,H=190,pl=44,pr=8,pt=12,pb=22,n=G.length,mx=Math.max(...G.map(g=>Math.max(g.a,g.b)),1),st=niceStep(mx/3),top=Math.ceil(mx/st)*st,gw=(W-pl-pr)/n,bw=Math.min(14,(gw-12)/2),Y=v=>pt+(top-v)*(H-pt-pb)/top,y0=Y(0);
+ const bar=(x,v,cls,tip)=>{const y=Y(v),h=y0-y;if(h<0.5)return '';const r=Math.min(4,h);return '<path d="M'+x+' '+y0+' V'+(y+r)+' Q'+x+' '+y+' '+(x+r)+' '+y+' H'+(x+bw-r)+' Q'+(x+bw)+' '+y+' '+(x+bw)+' '+(y+r)+' V'+y0+' Z" class="'+cls+'" data-tip="'+esc(tip)+'"/>'};
+ let s2='';for(let v=0;v<=top+1e-6;v+=st)s2+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" class="'+(v?'gr':'ax')+'"/><text x="'+(pl-6)+'" y="'+(Y(v)+3.5)+'" class="tk" text-anchor="end">'+fmtE(v)+'</text>';
+ G.forEach((g,i)=>{const cx=pl+gw*i+gw/2,tip='<b>'+g.lab+(g.fut?' (prévision)':'')+'</b><br>Revenus : '+eur(g.a)+'<br>Dépenses : '+eur(g.b)+'<br>Bilan : <b class="'+(g.a-g.b>=0?'pos':'neg')+'">'+(g.a-g.b>=0?'+':'')+eur(g.a-g.b)+'</b>';s2+=bar(cx-bw-1,g.a,'c1'+(g.fut?' fu':''),tip)+bar(cx+1,g.b,'c2'+(g.fut?' fu':''),tip)+'<text x="'+cx+'" y="'+(H-6)+'" class="tk'+(g.cur?' tk-b':'')+'" text-anchor="middle">'+g.short+'</text>'});
+ return '<div class="lg lg-h"><div><i style="background:var(--c1)"></i><span>Revenus</span></div><div><i style="background:var(--c2)"></i><span>Dépenses</span></div></div><svg class="cc" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Revenus et dépenses des '+n+' derniers mois">'+s2+'</svg>'}
+// ---------- données des graphiques ----------
+function evOn(d){const y=+d.slice(0,4),m=+d.slice(5,7)-1,ev=[];
+ S.items.forEach(i=>{if(+i.amt>0&&(isInst(i)||i.type=='abo'||(i.type=='travail'&&i.date))&&occ(i,d))ev.push([(isInst(i)?'🔒 ':i.type=='abo'?'🔁 ':'🛒 ')+i.title,-(isInst(i)?instAmt(i,d):+i.amt)])});
+ S.rec.forEach(r=>{const o=recOcc(r,y,m);if(o&&o.date==d)ev.push([(r.sal?'💼 ':'')+r.label,o.amt])});
+ S.tx.filter(t=>t.date==d&&(!S.bal||txAfter(t))).forEach(t=>ev.push([t.label,t.amt]));return ev}
+function fcPath(f){const pts=[{d:TD,v:f.B,ev:[]}];let bal=f.B-f.qd-f.pd,prev=TD;
+ for(let k=1;k<=f.D;k++){const d=dayAdd(TD,k);bal+=flowBetween(prev,d)+txOn(d)-(k<f.D?f.qd+f.pd:0);prev=d;pts.push({d,v:bal,ev:evOn(d),sal:k==f.D})}return pts}
+function fcBreak(f){let cr=0,ab=0,qd=0,fx=0,tx=0,inc=0;
+ for(let k=1;k<f.D;k++){const d=dayAdd(TD,k),y=+d.slice(0,4),m=+d.slice(5,7)-1;
+  S.items.forEach(i=>{if(+i.amt>0&&occ(i,d)){if(isInst(i))cr+=instAmt(i,d);else if(i.type=='abo')ab+=+i.amt;else if(i.type=='travail'&&i.date)qd+=+i.amt}});
+  S.rec.forEach(r=>{const o=recOcc(r,y,m);if(o&&o.date==d){if(o.amt<0)fx-=o.amt;else inc+=o.amt}});
+  S.tx.filter(t=>t.date==d&&(!S.bal||txAfter(t))).forEach(t=>{if(t.amt<0){if(t.cat!='Épargne')tx-=t.amt}else inc+=t.amt})}
+ const rows=[['🛒 Logement et quotidien',qd+f.qd*f.D,'budget sans date réparti sur '+f.D+' j'+(qd?' + dépenses datées':'')],['🎉 Argent de poche',f.pd*f.D,'≈ '+eur(f.pd)+' par jour'],['🔒 Crédits',cr],['🔁 Abonnements',ab],['📌 Dépenses prévues',tx],['📋 Dépenses fixes',fx]].filter(r=>r[1]>0.005).sort((a,b)=>b[1]-a[1]);
+ return {rows,out:rows.reduce((a,r)=>a+r[1],0),inc}}
+function fcChart(f){const b=fcBreak(f);
+ return '<div class="ch-t">📉 Ton solde jour par jour</div>'+lineChart(fcPath(f),{floor:f.floor,low:[f.lowDay,f.low]})
+ +'<small style="margin-top:2px">Les points marquent un prélèvement ou une rentrée ; touche la courbe pour voir le détail du jour.</small>'
+ +'<div class="ch-t">💸 Ce qui sort d’ici le salaire : '+eur(b.out)+'</div>'+hbars(b.rows.map(r=>[r[0],r[1],r[2]]),{total:b.out})
+ +(b.inc>0.005?'<p style="margin-top:8px">💶 Rentrées d’ici là : <b class="pos">+'+eur(b.inc)+'</b></p>':'')}
+function monthFlows(y,m){const all=monthAll(y,m);let a=0,b=0;all.forEach(t=>{if(t.amt>0)a+=t.amt;else if(t.cat!='Épargne')b-=t.amt});
+ for(let d=1;d<=dim(y,m);d++){const s=y+'-'+pad(m+1)+'-'+pad(d);S.items.forEach(i=>{if(+i.amt>0&&(isInst(i)||i.type=='abo'||(i.type=='travail'&&i.date))&&occ(i,s))b+=isInst(i)?instAmt(i,s):+i.amt})}
+ return {a,b:b+quotUndated()}}
+function budgetCharts(){const c=planCalc(),y0=+TD.slice(0,4),m0=+TD.slice(5,7)-1,G=[];
+ const ds=[...S.rec.map(r=>r.start),...S.tx.map(t=>t.date),...(S.sav||[]).map(x=>x.date),...(S.inv||[]).map(x=>x.date),S.bal?S.bal.date:TD].filter(Boolean).sort(),first=ds[0]||TD,back=Math.max(0,Math.min(5,mdiff(first,TD)));
+ for(let k=back;k>=-2;k--){let y=y0,m=m0-k;while(m<0){m+=12;y--}while(m>11){m-=12;y++}const f=monthFlows(y,m);G.push({lab:MO[m]+' '+y,short:MO[m].slice(0,3)+'.',a:f.a,b:f.b,cur:!k,fut:k<0})}
+ const parts=[['🛒 Logement et quotidien',c.qu+c.fx],['🔁 Abonnements',c.ab],['🔒 Crédits',c.cr],['🎉 Argent de poche',c.amt('poche')],['📈 Investissement',c.amt('invest')],['🐷 Épargne',c.amt('pepin')]];
+ return '<h2>📊 Où va ton argent chaque mois</h2><div class="card fc">'+(c.rev>0?'<p>Sur <b>'+eur(c.rev)+'</b> de revenu'+(c.reste<0?', il manque <b class="neg">'+eur(-c.reste)+'</b> chaque mois :':' :')+'</p>':'')+segBar(parts)+'<small>Charges fixes, puis ta répartition (« Mon budget du mois »). Touche une couleur pour le détail.</small></div>'
+ +'<h2>📈 Revenus et dépenses par mois</h2><div class="card fc">'+colChart(G)+'<small>En clair : les 2 prochains mois, en prévision. Dépenses = mouvements, crédits, abonnements, quotidien daté et budget du quotidien sans date (hors épargne et investissements).</small></div>'}
 function fcCard(){const r=salRec();
  if(!r)return '<div class="card fc" role="button" tabindex="0" style="cursor:pointer" onclick="salF()"><b>💼 Mon salaire</b><small>Touche ici pour indiquer ton salaire, le jour où tu le reçois et ton découvert à ne pas dépasser : l’appli te dira si tu tiens jusqu’au prochain.</small></div>';
  const f=forecast(),hd='<div class="pl-l"><b>💼 Salaire : '+eur(r.amt)+' le '+r.day+' du mois</b><button class="pill" style="border:0;cursor:pointer" onclick="salF()">Modifier</button></div>';
@@ -194,7 +261,7 @@ function fcCard(){const r=salRec();
   +(f.cutI>0.005?'<li>prends <b>'+eur(f.cutI)+'</b> sur ton investissement S&P 500 de ce mois</li>':'')
   +(f.cutE>0.005?'<li>utilise <b>'+eur(f.cutE)+'</b> de ton épargne</li>':'')+'</ul>'
   +(f.rest>0.005?'<p class="neg"><b>Même ainsi, il manquerait '+eur(f.rest)+'</b> : décale une dépense ou un paiement.</p>':'')}
- body+=loanHTML(f);if(f.B!==null&&f.D<=1)body+='<button class="go" style="margin-top:8px" onclick="savF()">🐷 C’est la veille du salaire : mettre de côté</button>';
+ if(f.B!==null)body+=fcChart(f);body+=loanHTML(f);if(f.B!==null&&f.D<=1)body+='<button class="go" style="margin-top:8px" onclick="savF()">🐷 C’est la veille du salaire : mettre de côté</button>';
  return '<div class="card fc">'+hd+body+'<small>Compte ton solde, tes revenus et dépenses fixes, crédits, abonnements, dépenses à venir, et ton budget du quotidien et ton argent de poche répartis sur les jours.</small></div>'}
 // ---------- S&P 500 : cours mis à jour chaque jour de bourse dans marche.json ----------
 let MK=null;
