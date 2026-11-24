@@ -148,18 +148,18 @@ function quotUndated(){return S.items.filter(i=>i.type=='travail'&&!i.date&&+i.a
 const odLim=()=>S.plan.od==null||S.plan.od===''?200:+S.plan.od;
 const pepTot=()=>(S.sav||[]).filter(x=>x.dest=='pepin').reduce((a,x)=>a+(+x.amt),0);
 function forecast(){const r=salRec();if(!r)return null;const {last,nxt}=payAround(r);if(!nxt)return null;
- const cyc=Math.max(last?daysBetween(last,nxt):30,1),D=daysBetween(TD,nxt),qd=quotUndated()/cyc,pc=planCalc(),pd=pc.amt('poche')/cyc,B=balNow(),floor=-odLim();
+ const cyc=Math.max(last?daysBetween(last,nxt):30,1),D=daysBetween(TD,nxt),qd=quotUndated()/cyc,pc=planCalc(),pd=0,pm=Math.max(0,pc.amt('poche')),B=balNow(),floor=-odLim();
  // aujourd'hui compte aussi : quotidien sans date + argent de poche, au prorata des jours
  let bal=(B||0)-qd-pd,low=bal,lowDay=TD,prev=TD,need=qd+pd;
  for(let k=1;k<D;k++){const d=dayAdd(TD,k),f=flowBetween(prev,d)+S.tx.filter(t=>t.date==d&&(!S.bal||txAfter(t))).reduce((a,t)=>a+t.amt,0)-qd-pd;bal+=f;need-=f;prev=d;if(bal<low){low=bal;lowDay=d}}
  // sous le découvert autorisé : on puise d'abord sur l'argent de poche (avant le point bas), puis sur l'investissement, puis sur l'épargne « pépin »
- const def=Math.max(0,floor-low),pocheAvant=pd*(daysBetween(TD,lowDay)+1),cutP=Math.min(def,pocheAvant),cutI=Math.min(def-cutP,Math.max(0,pc.amt('invest'))),cutE=Math.min(def-cutP-cutI,Math.max(0,pepTot())),rest=Math.max(0,def-cutP-cutI-cutE);
- return {r,nxt,D,B,before:bal,eve:bal+cutP+cutI+cutE,low,lowDay,need,qd,pd,poche:pd*D,floor,def,cutP,cutI,cutE,rest,days:Math.max(D,1)}}
+ const def=Math.max(0,floor-low),pocheAvant=pm,cutP=Math.min(def,pocheAvant),cutI=Math.min(def-cutP,Math.max(0,pc.amt('invest'))),cutE=Math.min(def-cutP-cutI,Math.max(0,pepTot())),rest=Math.max(0,def-cutP-cutI-cutE);
+ return {r,nxt,D,B,before:bal,eve:bal+cutP+cutI+cutE,low,lowDay,need,qd,pd,poche:pm,pm,floor,def,cutP,cutI,cutE,rest,days:Math.max(D,1)}}
 // Règle : les prélèvements de crédit doivent toujours passer (jusqu'au salaire d'après le prochain)
 const txOn=d=>S.tx.filter(t=>t.date==d&&(!S.bal||txAfter(t))).reduce((a,t)=>a+t.amt,0);
 function loanWatch(f){const r=f.r,y=+f.nxt.slice(0,4),m=+f.nxt.slice(5,7)-1,o2=recOcc(r,m==11?y+1:y,(m+1)%12),end=o2?dayAdd(o2.date,-1):dayAdd(f.nxt,30);
  let bal=f.B-f.qd-f.pd,prev=TD;const out=[];
- for(let k=1;k<400;k++){const d=dayAdd(TD,k);if(d>end)break;bal+=flowBetween(prev,d)+txOn(d)-f.qd-f.pd;prev=d;
+ for(let k=1;k<400;k++){const d=dayAdd(TD,k);if(d>end)break;bal+=flowBetween(prev,d)+txOn(d)-f.qd-f.pd-(d==f.nxt?f.pm:0);prev=d;
   S.items.filter(i=>isInst(i)&&occ(i,d)).forEach(i=>out.push({d,t:i.title,a:instAmt(i,d),bal,next:d>=f.nxt}))}
  return out}
 function loanHTML(f){if(f.B===null)return '';const L=loanWatch(f);if(!L.length)return '';
@@ -224,13 +224,13 @@ function evOn(d){const y=+d.slice(0,4),m=+d.slice(5,7)-1,ev=[];
  S.rec.forEach(r=>{const o=recOcc(r,y,m);if(o&&o.date==d)ev.push([(r.sal?'💼 ':'')+r.label,o.amt])});
  S.tx.filter(t=>t.date==d&&(!S.bal||txAfter(t))).forEach(t=>ev.push([t.label,t.amt]));return ev}
 function fcPath(f){const pts=[{d:TD,v:f.B,ev:[]}];let bal=f.B-f.qd-f.pd,prev=TD;
- for(let k=1;k<=f.D;k++){const d=dayAdd(TD,k);bal+=flowBetween(prev,d)+txOn(d)-(k<f.D?f.qd+f.pd:0);prev=d;pts.push({d,v:bal,ev:evOn(d),sal:k==f.D})}return pts}
+ for(let k=1;k<=f.D;k++){const d=dayAdd(TD,k);bal+=flowBetween(prev,d)+txOn(d)-(k<f.D?f.qd+f.pd:0);prev=d;const ev=evOn(d);if(k==f.D&&f.pm>0.005){bal-=f.pm;ev.push(['🎉 Argent de poche (sorti du compte)',-f.pm])}pts.push({d,v:bal,ev,sal:k==f.D})}return pts}
 function fcBreak(f){let cr=0,ab=0,qd=0,fx=0,tx=0,inc=0;
  for(let k=1;k<f.D;k++){const d=dayAdd(TD,k),y=+d.slice(0,4),m=+d.slice(5,7)-1;
   S.items.forEach(i=>{if(+i.amt>0&&occ(i,d)){if(isInst(i))cr+=instAmt(i,d);else if(i.type=='abo')ab+=+i.amt;else if(i.type=='travail'&&i.date)qd+=+i.amt}});
   S.rec.forEach(r=>{const o=recOcc(r,y,m);if(o&&o.date==d){if(o.amt<0)fx-=o.amt;else inc+=o.amt}});
   S.tx.filter(t=>t.date==d&&(!S.bal||txAfter(t))).forEach(t=>{if(t.amt<0){if(t.cat!='Épargne')tx-=t.amt}else inc+=t.amt})}
- const rows=[['🛒 Logement et quotidien',qd+f.qd*f.D,'budget sans date réparti sur '+f.D+' j'+(qd?' + dépenses datées':'')],['🎉 Argent de poche',f.pd*f.D,'≈ '+eur(f.pd)+' par jour'],['🔒 Crédits',cr],['🔁 Abonnements',ab],['📌 Dépenses prévues',tx],['📋 Dépenses fixes',fx]].filter(r=>r[1]>0.005).sort((a,b)=>b[1]-a[1]);
+ const rows=[['🛒 Logement et quotidien',qd+f.qd*f.D,'budget sans date réparti sur '+f.D+' j'+(qd?' + dépenses datées':'')],['🔒 Crédits',cr],['🔁 Abonnements',ab],['📌 Dépenses prévues',tx],['📋 Dépenses fixes',fx]].filter(r=>r[1]>0.005).sort((a,b)=>b[1]-a[1]);
  return {rows,out:rows.reduce((a,r)=>a+r[1],0),inc}}
 function fcChart(f){const b=fcBreak(f);
  return '<div class="ch-t">📉 Ton solde jour par jour</div>'+lineChart(fcPath(f),{floor:f.floor,low:[f.lowDay,f.low]})
@@ -254,15 +254,15 @@ function fcCard(){const r=salRec();
  let body='<p>Prochain salaire : <b>'+when+'</b></p>';
  if(f.B===null)body+='<p>D’ici là, tes dépenses prévues : <b>'+eur(Math.max(0,f.need))+'</b> (argent de poche compris).</p><p><a href="#" onclick="balF();return false">Définis ton solde actuel</a> pour savoir si ça passe.</p>';
  else if(!f.def){body+=(f.low<0?'<p>Point le plus bas : <b class="neg">'+eur(f.low)+'</b> le '+dl(f.lowDay)+' (limite : '+lim+').</p>':'')
-  +'<p>Argent de poche jusque-là : <b>'+eur(f.poche)+'</b> (≈ '+eur(f.pd)+' par jour).</p>'
+  +(f.pm>0.005?'<p>Argent de poche : <b>'+eur(f.pm)+'</b>, sorti du compte en une fois le jour du salaire (ce qu’il en reste à la fin va à l’épargne).</p>':'')
   +(f.before>0?'<p>La veille, il te restera environ <b class="pos">'+eur(f.before)+'</b> à mettre de côté.</p>':'<p>La veille, tu seras à <b>'+eur(f.before)+'</b>, dans ton découvert autorisé.</p>')}
  else{body+='<p class="neg"><b>⚠️ Tu descendrais à '+eur(f.low)+' le '+dl(f.lowDay)+'</b>, sous ta limite de '+lim+'.</p><p>Pour rester au-dessus :</p><ul style="margin:4px 0 6px 18px;padding:0">'
-  +(f.cutP>0.005?(f.pd*(daysBetween(TD,f.lowDay)+1)-f.cutP<0.5?'<li>ne dépense <b>pas d’argent de poche</b> d’ici le '+dl(f.lowDay)+' (au lieu de '+eur(f.pd*(daysBetween(TD,f.lowDay)+1))+')</li>':'<li>dépense au plus <b>'+eur(f.pd*(daysBetween(TD,f.lowDay)+1)-f.cutP)+'</b> d’argent de poche d’ici le '+dl(f.lowDay)+' (au lieu de '+eur(f.pd*(daysBetween(TD,f.lowDay)+1))+')</li>'):'')
+  +(f.cutP>0.005?'<li>remets <b>'+eur(f.cutP)+'</b> de ton argent de poche sur ton compte avant le '+dl(f.lowDay)+'</li>':'')
   +(f.cutI>0.005?'<li>prends <b>'+eur(f.cutI)+'</b> sur ton investissement S&P 500 de ce mois</li>':'')
   +(f.cutE>0.005?'<li>utilise <b>'+eur(f.cutE)+'</b> de ton épargne</li>':'')+'</ul>'
   +(f.rest>0.005?'<p class="neg"><b>Même ainsi, il manquerait '+eur(f.rest)+'</b> : décale une dépense ou un paiement.</p>':'')}
  if(f.B!==null)body+=fcChart(f);body+=loanHTML(f);if(f.B!==null&&f.D<=1)body+='<button class="go" style="margin-top:8px" onclick="savF()">🐷 C’est la veille du salaire : mettre de côté</button>';
- return '<div class="card fc">'+hd+body+'<small>Compte ton solde, tes revenus et dépenses fixes, crédits, abonnements, dépenses à venir, et ton budget du quotidien et ton argent de poche répartis sur les jours.</small></div>'}
+ return '<div class="card fc">'+hd+body+'<small>Compte ton solde, tes revenus et dépenses fixes, crédits, abonnements, dépenses à venir, et ton budget du quotidien et réparti sur les jours ; l’argent de poche sort en une fois au salaire.</small></div>'}
 // ---------- S&P 500 : cours mis à jour chaque jour de bourse dans marche.json ----------
 let MK=null;
 function mkLoad(){fetch('marche.json?'+TD,{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.spx&&j.spx.length>1){MK=j;render()}}).catch(()=>{})}
@@ -300,11 +300,11 @@ const chk=(id,txt)=>'<label style="display:flex;gap:8px;align-items:center;margi
 function savF(){const f=forecast(),base=f&&f.B!==null?Math.floor(f.D<=1?balNow():f.eve):0,marg=f&&f.B!==null?Math.min(Infinity,...loanWatch(f).filter(x=>x.next).map(x=>x.bal-f.floor)):Infinity,sug=Math.max(0,Math.floor(Math.min(base,marg))),res=Math.max(0,base-sug),ep=epShare(),inv=Math.round(sug*(100-ep)/100);
  sheet('<h2 style="margin-top:0">Mettre de côté</h2><small style="color:var(--mu);font-size:12.5px;display:block">'+(f&&f.B!==null?(f.D<=1?'C’est la veille de ton salaire : il te reste '+eur(balNow())+'.':'D’après la prévision, il devrait te rester environ '+eur(f.eve)+' la veille de ton salaire.'):'Indique ce que tu mets de côté.')+'</small>'
  +(res>0?'<small style="color:var(--rd);font-size:12.5px;display:block;margin-top:6px">🔒 '+eur(res)+' restent sur ton compte pour que tes crédits du mois prochain passent.</small>':'')+(sug>0?'<small style="color:var(--mu);font-size:12.5px;display:block;margin-top:6px">💡 Proposition : '+Math.round(ep)+' % épargne / '+Math.round(100-ep)+' % investissement'+(isAuto()?' ('+(pepTot()<ruleOf().seuil?'ton épargne est sous '+eur(ruleOf().seuil):'ton épargne a dépassé '+eur(ruleOf().seuil))+')':'')+'.</small>':'')+'<label>🐷 Vers mon épargne (€)</label><input id="v_p" type="number" inputmode="decimal" step="0.01" min="0" value="'+(sug-inv||'')+'">'
- +'<label>📈 Investi dans le S&P 500 (€)</label><input id="v_i" type="number" inputmode="decimal" step="0.01" min="0" value="'+(inv||'')+'">'
+ +'<label>🎉 Reste de mon argent de poche → épargne (€)</label><input id="v_r" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0"><small style="color:var(--mu);font-size:12px;display:block;margin-top:4px">Ajouté à ton épargne sans toucher à ton compte courant (cet argent est déjà sorti).</small>'+'<label>📈 Investi dans le S&P 500 (€)</label><input id="v_i" type="number" inputmode="decimal" step="0.01" min="0" value="'+(inv||'')+'">'
  +'<label>Date</label><input id="v_d" type="date" value="'+TD+'">'+chk('v_t','Retirer ces sommes de mon compte courant')+'<button class="go" onclick="saveSav()">Enregistrer</button>')}
-function saveSav(){const p=parseFloat($('#v_p').value)||0,i=parseFloat($('#v_i').value)||0,d=$('#v_d').value||TD;if(p<0||i<0||!(p+i>0)){alert('Indique un montant à mettre de côté.');return}
+function saveSav(){const p=parseFloat($('#v_p').value)||0,i=parseFloat($('#v_i').value)||0,rp=parseFloat(($('#v_r')||{}).value)||0,d=$('#v_d').value||TD;if(p<0||i<0||rp<0||!(p+i+rp>0)){alert('Indique un montant à mettre de côté.');return}if(rp>0)S.sav.push({id:uid(),date:d,amt:Math.round(rp*100)/100,dest:'pepin',note:'Reste de l’argent de poche'});
  if(p>0)S.sav.push({id:uid(),date:d,amt:Math.round(p*100)/100,dest:'pepin'});if(i>0)S.inv.push({id:uid(),date:d,amt:Math.round(i*100)/100});
- if($('#v_t').checked)S.tx.push({id:uid(),label:p&&i?'Épargne + S&P 500':p?'Épargne':'Investissement S&P 500',date:d,amt:-Math.round((p+i)*100)/100,cat:'Épargne',ct:Date.now()});save();closeF();render()}
+ if($('#v_t').checked&&p+i>0)S.tx.push({id:uid(),label:p&&i?'Épargne + S&P 500':p?'Épargne':'Investissement S&P 500',date:d,amt:-Math.round((p+i)*100)/100,cat:'Épargne',ct:Date.now()});save();closeF();render()}
 function invF(){sheet('<h2 style="margin-top:0">Achat S&P 500</h2><label>Montant investi (€)</label><input id="i_a" type="number" inputmode="decimal" step="0.01" placeholder="Ex. 20"><label>Date de l’achat</label><input id="i_d" type="date" value="'+TD+'"><label>Note (facultatif)</label><input id="i_n" placeholder="Ex. ETF sur mon PEA">'+chk('i_t','Retirer ce montant de mon compte courant')+'<button class="go" onclick="saveInv()">Enregistrer</button>')}
 function saveInv(){const a=parseFloat($('#i_a').value),d=$('#i_d').value||TD;if(!(a>0)){alert('Indique le montant investi.');return}S.inv.push({id:uid(),date:d,amt:Math.round(a*100)/100,note:$('#i_n').value.trim()});if($('#i_t').checked)S.tx.push({id:uid(),label:'Investissement S&P 500',date:d,amt:-Math.round(a*100)/100,cat:'Épargne',ct:Date.now()});save();closeF();render()}
 function wdF(){sheet('<h2 style="margin-top:0">Utiliser mon épargne</h2><small style="color:var(--mu);font-size:12.5px;display:block">Ton épargne : '+eur(pepTot())+'.</small><label>Montant repris (€)</label><input id="w_a" type="number" inputmode="decimal" step="0.01"><label>Date</label><input id="w_d" type="date" value="'+TD+'">'+chk('w_t','Remettre ce montant sur mon compte courant')+'<button class="go" onclick="saveWd()">Enregistrer</button>')}
