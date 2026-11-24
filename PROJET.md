@@ -17,6 +17,7 @@ assets/img/             favicon.svg, icône SVG (pas de PNG)
 `{ items, tx, debts, rec, bal, notes, plan, bud, ts }`
 - `items[]` : `{id, type: rdv|anniv|travail|renouv|abo|credit, title, date, rep: none|yearly|monthly, amt, note, lead}`
   - paiement en plusieurs fois (`fois`) : `total`, `n` = nombre d'échéances, `amt` = total/n arrondi au centime ; la dernière échéance absorbe l'arrondi (`instAmt`).
+  - `travail` s'affiche « 🛒 Quotidien » (clé interne inchangée) : `date` facultative. Sans date : compté seulement dans « Mon budget du mois » (`quotMonthly`), ni agenda ni solde. Avec date : agenda + déduit du solde (`flowBetween`).
   - prêt étudiant (`stu: 1`) : `cap`, `rate`, `n` (mois de remboursement), `def` (n | p partiel | t total), `dfm` (mois de différé), `ins` (assurance €/mois), `dpay` (intérêts payés pendant un différé partiel). Échéance du mois j : `payAt(it, j)` ; en différé total les intérêts sont capitalisés (`stuCalc`).
   - crédit saisi avec le taux : `cap` = capital emprunté, `rate` = taux annuel (%), `n` = durée en mois ; mensualité = `mensu(cap, rate, n)` (amortissement classique), `total` = mensualité × n.
   - crédit : `amt` = mensualité, `total` = montant total à rembourser, `date` = 1er prélèvement. Mensualités payées, reste et date de fin sont **calculés** (`credPaid`, `credLeft`, `credEnd`), jamais stockés.
