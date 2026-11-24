@@ -76,3 +76,4 @@ textarea{resize:vertical}
 }
 .fc{padding:12px 14px;margin:10px 0 4px;font-size:14px;line-height:1.5}.fc p{margin:6px 0}.fc small{color:var(--mu);font-size:12px;display:block;margin-top:6px}.fc a{color:var(--ac)}
 .pl-min{margin-top:6px;color:var(--mu);font-size:12.5px}.pl-min input{width:74px;padding:5px 8px;text-align:right}
+.loanbox{margin:10px 0 4px;padding:10px 12px;border:1px solid var(--ln);border-radius:12px;background:var(--bg)}.loanbox li{margin:3px 0}

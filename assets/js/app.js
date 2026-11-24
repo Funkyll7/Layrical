@@ -138,6 +138,30 @@ function forecast(){const r=salRec();if(!r)return null;const {last,nxt}=payAroun
  // sous le découvert autorisé : on puise d'abord sur l'argent de poche (avant le point bas), puis sur l'investissement, puis sur l'épargne « pépin »
  const def=Math.max(0,floor-low),pocheAvant=pd*(daysBetween(TD,lowDay)+1),cutP=Math.min(def,pocheAvant),cutI=Math.min(def-cutP,Math.max(0,pc.amt('invest'))),cutE=Math.min(def-cutP-cutI,Math.max(0,pepTot())),rest=Math.max(0,def-cutP-cutI-cutE);
  return {r,nxt,D,B,before:bal,eve:bal+cutP+cutI+cutE,low,lowDay,need,qd,pd,poche:pd*D,floor,def,cutP,cutI,cutE,rest,days:Math.max(D,1)}}
+// Règle : les prélèvements de crédit doivent toujours passer (jusqu'au salaire d'après le prochain)
+const txOn=d=>S.tx.filter(t=>t.date==d&&(!S.bal||txAfter(t))).reduce((a,t)=>a+t.amt,0);
+function loanWatch(f){const r=f.r,y=+f.nxt.slice(0,4),m=+f.nxt.slice(5,7)-1,o2=recOcc(r,m==11?y+1:y,(m+1)%12),end=o2?dayAdd(o2.date,-1):dayAdd(f.nxt,30);
+ let bal=f.B-f.qd-f.pd,prev=TD;const out=[];
+ for(let k=1;k<400;k++){const d=dayAdd(TD,k);if(d>end)break;bal+=flowBetween(prev,d)+txOn(d)-f.qd-f.pd;prev=d;
+  S.items.filter(i=>isInst(i)&&occ(i,d)).forEach(i=>out.push({d,t:i.title,a:instAmt(i,d),bal,next:d>=f.nxt}))}
+ return out}
+function loanHTML(f){if(f.B===null)return '';const L=loanWatch(f);if(!L.length)return '';
+ const inv=Math.max(0,planCalc().amt('invest')),pep=Math.max(0,pepTot());let worst=null;
+ const li=L.map(x=>{const need=f.floor-x.bal;let st;
+  if(need<=0.005)st='<span class="pos">✓ passe</span>';
+  else if(!x.next&&need<=f.pd*(daysBetween(TD,x.d)+1)+inv+pep+0.005)st='<span class="pos">✓ passe si tu suis les étapes ci-dessus</span>';
+  else{st='<span class="neg"><b>⚠️ risque d’être rejeté</b> (il manque '+eur(need)+')</span>';if(!worst)worst=x}
+  return '<li><b>'+esc(x.t)+'</b> : '+eur(x.a)+' le '+dl(x.d)+(x.next?' <small style="display:inline;margin:0">(après le salaire)</small>':'')+' · '+st+'</li>'}).join('');
+ let help='';const nxtNeed=Math.max(0,...L.filter(x=>x.next).map(x=>f.floor-x.bal));
+ if(worst){const subs=S.items.filter(i=>i.type=='abo'&&+i.amt>0).map(i=>{let d=null;for(let k=0;k<=daysBetween(TD,worst.d);k++){const x=dayAdd(TD,k);if(occ(i,x)){d=x;break}}return d?{t:i.title,a:+i.amt,d}:null}).filter(Boolean),
+   occ0=S.tx.filter(t=>t.amt<0&&t.date>TD&&t.date<=worst.d&&t.cat!='Épargne');
+  help='<p><b>Pour que ton crédit passe quand même :</b></p><ul style="margin:4px 0 6px 18px;padding:0">'
+   +(nxtNeed>0?'<li>la veille de ton salaire, garde au moins <b>'+eur(nxtNeed)+'</b> de plus sur ton compte (ne mets pas tout de côté)</li>':'')
+   +(subs.length?'<li>suspends des abonnements d’ici là : '+subs.map(x=>esc(x.t)+' ('+eur(x.a)+' le '+dl(x.d)+')').join(', ')+'</li>':'')
+   +(occ0.length?'<li>décale des dépenses prévues : '+occ0.map(t=>esc(t.label)+' ('+eur(-t.amt)+')').join(', ')+'</li>':'')
+   +(pep>0?'<li>reprends de l’argent dans ton épargne « En cas de pépin » ('+eur(pep)+' disponibles)</li>':'')
+   +'<li><b>appelle ta banque avant le '+dl(worst.d)+'</b> : demande un report d’échéance ou une hausse ponctuelle de ton découvert. C’est toujours mieux qu’un prélèvement de crédit rejeté.</li></ul>'}
+ return '<div class="loanbox"><b>🔒 Crédits à payer en priorité</b><ul style="margin:6px 0 4px 18px;padding:0">'+li+'</ul>'+help+'</div>'}
 function fcCard(){const r=salRec();
  if(!r)return '<div class="card fc" role="button" tabindex="0" style="cursor:pointer" onclick="salF()"><b>💼 Mon salaire</b><small>Touche ici pour indiquer ton salaire, le jour où tu le reçois et ton découvert à ne pas dépasser : l’appli te dira si tu tiens jusqu’au prochain.</small></div>';
  const f=forecast(),hd='<div class="pl-l"><b>💼 Salaire : '+eur(r.amt)+' le '+r.day+' du mois</b><button class="pill" style="border:0;cursor:pointer" onclick="salF()">Modifier</button></div>';
@@ -153,7 +177,7 @@ function fcCard(){const r=salRec();
   +(f.cutI>0.005?'<li>prends <b>'+eur(f.cutI)+'</b> sur ton investissement S&P 500 de ce mois</li>':'')
   +(f.cutE>0.005?'<li>utilise <b>'+eur(f.cutE)+'</b> de ton épargne « En cas de pépin »</li>':'')+'</ul>'
   +(f.rest>0.005?'<p class="neg"><b>Même ainsi, il manquerait '+eur(f.rest)+'</b> : décale une dépense ou un paiement.</p>':'')}
- if(f.B!==null&&f.D<=1)body+='<button class="go" style="margin-top:8px" onclick="savF()">🐷 C’est la veille du salaire : mettre de côté</button>';
+ body+=loanHTML(f);if(f.B!==null&&f.D<=1)body+='<button class="go" style="margin-top:8px" onclick="savF()">🐷 C’est la veille du salaire : mettre de côté</button>';
  return '<div class="card fc">'+hd+body+'<small>Compte ton solde, tes revenus et dépenses fixes, crédits, abonnements, dépenses à venir, et ton budget du quotidien et ton argent de poche répartis sur les jours.</small></div>'}
 // ---------- S&P 500 : cours mis à jour chaque jour de bourse dans marche.json ----------
 let MK=null;
@@ -189,9 +213,9 @@ let RT=null;
 function rateIn(v){S.plan.rate=v;const e=$('#projres');if(e)e.innerHTML=projRes();clearTimeout(RT);RT=setTimeout(save,600)}
 function pvIn(v){S.plan.pv=v===''?null:v;save();render()}
 const chk=(id,txt)=>'<label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input id="'+id+'" type="checkbox" checked style="width:auto"> '+txt+'</label>';
-function savF(){const f=forecast(),sug=f&&f.B!==null?Math.max(0,Math.floor(f.D<=1?balNow():f.eve)):0,inv=Math.min(sug,Math.round(planCalc().amt('invest')));
+function savF(){const f=forecast(),base=f&&f.B!==null?Math.floor(f.D<=1?balNow():f.eve):0,marg=f&&f.B!==null?Math.min(Infinity,...loanWatch(f).filter(x=>x.next).map(x=>x.bal-f.floor)):Infinity,sug=Math.max(0,Math.floor(Math.min(base,marg))),res=Math.max(0,base-sug),inv=Math.min(sug,Math.round(planCalc().amt('invest')));
  sheet('<h2 style="margin-top:0">Mettre de côté</h2><small style="color:var(--mu);font-size:12.5px;display:block">'+(f&&f.B!==null?(f.D<=1?'C’est la veille de ton salaire : il te reste '+eur(balNow())+'.':'D’après la prévision, il devrait te rester environ '+eur(f.eve)+' la veille de ton salaire.'):'Indique ce que tu mets de côté.')+'</small>'
- +'<label>🛟 Vers mon épargne « En cas de pépin » (€)</label><input id="v_p" type="number" inputmode="decimal" step="0.01" min="0" value="'+(sug-inv||'')+'">'
+ +(res>0?'<small style="color:var(--rd);font-size:12.5px;display:block;margin-top:6px">🔒 '+eur(res)+' restent sur ton compte pour que tes crédits du mois prochain passent.</small>':'')+'<label>🛟 Vers mon épargne « En cas de pépin » (€)</label><input id="v_p" type="number" inputmode="decimal" step="0.01" min="0" value="'+(sug-inv||'')+'">'
  +'<label>📈 Investi dans le S&P 500 (€)</label><input id="v_i" type="number" inputmode="decimal" step="0.01" min="0" value="'+(inv||'')+'">'
  +'<label>Date</label><input id="v_d" type="date" value="'+TD+'">'+chk('v_t','Retirer ces sommes de mon compte courant')+'<button class="go" onclick="saveSav()">Enregistrer</button>')}
 function saveSav(){const p=parseFloat($('#v_p').value)||0,i=parseFloat($('#v_i').value)||0,d=$('#v_d').value||TD;if(p<0||i<0||!(p+i>0)){alert('Indique un montant à mettre de côté.');return}

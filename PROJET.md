@@ -34,6 +34,7 @@ assets/img/             favicon.svg, icône SVG (pas de PNG)
 - `plan.extra` : somme en plus par mois pour rembourser. `debtList()` (capital restant réel des crédits), `simPay()` (avalanche + boule de neige), `payoffCard()` dans l'onglet Dettes.
 - `sav[]` : `{id, date, amt, dest: 'pepin'}` (négatif = retrait) ; `inv[]` : `{id, date, amt, note}` achats S&P 500. Valeur = montant × indice en euros aujourd'hui / indice à la date d'achat (`invStats`, `idxEur`), ou `plan.pv` saisi à la main.
 - `plan.od` : découvert à ne pas dépasser (200 € par défaut). `forecast()` répartit argent de poche et quotidien sur les jours ; sous la limite, il puise d'abord sur l'argent de poche avant le point bas, puis l'investissement du mois, puis l'épargne « pépin ».
+- Règle des crédits : `loanWatch()` simule chaque jour jusqu'au salaire d'après le prochain et vérifie que chaque prélèvement de crédit laisse le compte au-dessus du découvert autorisé ; sinon `loanHTML()` liste les actions (abonnements à suspendre, dépenses à décaler, épargne, appel à la banque). « Mettre de côté » garde la réserve nécessaire aux crédits du mois suivant.
 - `plan.rate` : rendement supposé pour les intérêts composés (par défaut, moyenne 10 ans en euros, `cagr()`).
 - `notes` : texte du bloc-notes (panneau à droite ≥ 1000 px, bouton 📝 + fenêtre en dessous) ; `noteIn()` enregistre 0,6 s après la frappe.
 - `ts` : date de dernière modification (la plus récente gagne à la synchro)
