@@ -3,6 +3,9 @@
 > Si tu ajoutes, déplaces ou supprimes un fichier, mets ce document à jour.
 
 ```
+marche.json             cours du S&P 500 et EUR/USD (10 ans), écrit chaque soir de bourse par la tâche ci-dessous
+scripts/marche.mjs      récupère les cours (Yahoo Finance, secours Stooq) et écrit marche.json
+.github/workflows/marche.yml  tâche GitHub quotidienne (et bouton « Run workflow ») qui lance le script
 index.html              structure de la page unique
 sw.js                   cache hors ligne (réseau d'abord ; API GitHub jamais interceptée)
 manifest.webmanifest    installation sur l'écran d'accueil
@@ -14,7 +17,7 @@ assets/img/             favicon.svg, icône SVG (pas de PNG)
 ```
 
 ## Modèle de données (`agenda-data.json`, dans le dépôt privé)
-`{ items, tx, debts, rec, bal, notes, plan, bud, ts }`
+`{ items, tx, debts, rec, sav, inv, bal, notes, plan, bud, ts }`
 - `items[]` : `{id, type: rdv|anniv|travail|renouv|abo|credit, title, date, rep: none|yearly|monthly, amt, note, lead}`
   - paiement en plusieurs fois (`fois`) : `total`, `n` = nombre d'échéances, `amt` = total/n arrondi au centime ; la dernière échéance absorbe l'arrondi (`instAmt`).
   - `travail` s'affiche « 🛒 Quotidien » (clé interne inchangée) : `date` facultative. Sans date : compté seulement dans « Mon budget du mois » (`quotMonthly`), ni agenda ni solde. Avec date : agenda + déduit du solde (`flowBetween`).
@@ -29,6 +32,9 @@ assets/img/             favicon.svg, icône SVG (pas de PNG)
 - `plan` : `{inc, p: {poche, invest, pepin}, min: {poche, invest, pepin}, extra}` ; avec des minimums, chaque catégorie reçoit d'abord son minimum puis les % répartissent le surplus (si le reste ne couvre pas les minimums, ils sont réduits à proportion) : revenu saisi (vide = revenus fixes) et pourcentages du reste après charges fixes. Panneau à gauche ≥ 1340 px, bouton 💰 sinon (`planHTML`, `planCalc`).
 - Salaire : entrée de `rec` avec `sal: 1` (fenêtre `salF`). `forecast()` simule jour par jour le solde jusqu'au prochain salaire (flux automatiques + mouvements à venir + quotidien sans date au prorata) ; carte `fcCard()` sur l'accueil et dans Budget.
 - `plan.extra` : somme en plus par mois pour rembourser. `debtList()` (capital restant réel des crédits), `simPay()` (avalanche + boule de neige), `payoffCard()` dans l'onglet Dettes.
+- `sav[]` : `{id, date, amt, dest: 'pepin'}` (négatif = retrait) ; `inv[]` : `{id, date, amt, note}` achats S&P 500. Valeur = montant × indice en euros aujourd'hui / indice à la date d'achat (`invStats`, `idxEur`), ou `plan.pv` saisi à la main.
+- `plan.od` : découvert à ne pas dépasser (200 € par défaut). `forecast()` répartit argent de poche et quotidien sur les jours ; sous la limite, il puise d'abord sur l'argent de poche avant le point bas, puis l'investissement du mois, puis l'épargne « pépin ».
+- `plan.rate` : rendement supposé pour les intérêts composés (par défaut, moyenne 10 ans en euros, `cagr()`).
 - `notes` : texte du bloc-notes (panneau à droite ≥ 1000 px, bouton 📝 + fenêtre en dessous) ; `noteIn()` enregistre 0,6 s après la frappe.
 - `ts` : date de dernière modification (la plus récente gagne à la synchro)
 

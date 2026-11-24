@@ -10,12 +10,12 @@ const P=s=>{const a=s.split('-');return new Date(+a[0],+a[1]-1,+a[2],12)};
 const TD=iso(new Date());
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const eur=n=>n.toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
-const dl=s=>P(s).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+const dl=s=>P(s).toLocaleDateString('fr-FR',Object.assign({weekday:'short',day:'numeric',month:'short'},s.slice(0,4)!=TD.slice(0,4)?{year:'numeric'}:{}));
 const diff=s=>Math.round((P(s)-P(TD))/864e5);
 const inj=n=>n==0?"Aujourd’hui":n==1?'Demain':'Dans '+n+' j';
-let S={items:[],tx:[],debts:[],rec:[],bal:null,plan:{inc:'',p:{poche:50,invest:25,pepin:25}},bud:{},ts:0,tab:'home',sel:TD,cy:+TD.slice(0,4),cm:+TD.slice(5,7)-1,by:+TD.slice(0,4),bm:+TD.slice(5,7)-1};
-let SYNC='local';const apply=o=>{S.items=o.items||[];S.tx=o.tx||[];S.debts=o.debts||[];S.rec=o.rec||[];S.bal=o.bal||null;S.notes=o.notes||'';S.plan=o.plan||{inc:'',p:{poche:50,invest:25,pepin:25}};S.bud=o.bud||{};S.ts=o.ts||0};try{const r=localStorage.getItem('agenda-perso');if(r)apply(JSON.parse(r))}catch(e){}
-const snap=()=>({items:S.items,tx:S.tx,debts:S.debts,rec:S.rec,bal:S.bal,notes:S.notes||'',plan:S.plan,bud:S.bud,ts:S.ts});
+let S={items:[],tx:[],debts:[],rec:[],sav:[],inv:[],bal:null,plan:{inc:'',p:{poche:50,invest:25,pepin:25}},bud:{},ts:0,tab:'home',sel:TD,cy:+TD.slice(0,4),cm:+TD.slice(5,7)-1,by:+TD.slice(0,4),bm:+TD.slice(5,7)-1};
+let SYNC='local';const apply=o=>{S.items=o.items||[];S.tx=o.tx||[];S.debts=o.debts||[];S.rec=o.rec||[];S.bal=o.bal||null;S.notes=o.notes||'';S.plan=o.plan||{inc:'',p:{poche:50,invest:25,pepin:25}};S.sav=o.sav||[];S.inv=o.inv||[];S.bud=o.bud||{};S.ts=o.ts||0};try{const r=localStorage.getItem('agenda-perso');if(r)apply(JSON.parse(r))}catch(e){}
+const snap=()=>({items:S.items,tx:S.tx,debts:S.debts,rec:S.rec,bal:S.bal,notes:S.notes||'',plan:S.plan,sav:S.sav,inv:S.inv,bud:S.bud,ts:S.ts});
 let ERR='';const badge=()=>{const e=$('#sy');e.textContent=SYNC=='ok'?'☁️ Synchronisé':SYNC=='sav'?'☁️ Envoi…':SYNC=='err'?'⚠️ '+(ERR||'Hors ligne'):'📱 Local · touche pour régler la synchro';e.onclick=()=>gs();e.style.cursor='pointer'};
 const lsave=()=>{try{localStorage.setItem('agenda-perso',JSON.stringify(snap()))}catch(e){}};
 const save=()=>{S.ts=Date.now();lsave();if(GH.token&&GH.repo){SYNC='sav';badge();clearTimeout(tm);tm=setTimeout(push,1200)}};
@@ -128,39 +128,96 @@ const salRec=()=>S.rec.find(r=>r.sal&&(!r.end||r.end>=TD));
 function payAround(r){let y=+TD.slice(0,4),m=+TD.slice(5,7)-1,last=null,nxt=null;for(let k=-2;k<3;k++){let Y=y,M=m+k;while(M<0){M+=12;Y--}while(M>11){M-=12;Y++}const o=recOcc(r,Y,M);if(!o)continue;if(o.date<=TD)last=o.date;else if(!nxt)nxt=o.date}return {last,nxt}}
 const dayAdd=(s,n)=>{const d=P(s);d.setDate(d.getDate()+n);return iso(d)},daysBetween=(a,b)=>Math.round((P(b)-P(a))/864e5);
 function quotUndated(){return S.items.filter(i=>i.type=='travail'&&!i.date&&+i.amt>0&&repMonths(i.rep)).reduce((a,i)=>a+(+i.amt)/repMonths(i.rep),0)}
+const odLim=()=>S.plan.od==null||S.plan.od===''?200:+S.plan.od;
+const pepTot=()=>(S.sav||[]).filter(x=>x.dest=='pepin').reduce((a,x)=>a+(+x.amt),0);
 function forecast(){const r=salRec();if(!r)return null;const {last,nxt}=payAround(r);if(!nxt)return null;
- const cyc=last?daysBetween(last,nxt):30,D=daysBetween(TD,nxt),qd=quotUndated()/Math.max(cyc,1),B=balNow();
- let bal=B||0,low=bal,lowDay=TD,prev=TD,need=0;
- for(let k=1;k<D;k++){const d=dayAdd(TD,k),f=flowBetween(prev,d)+S.tx.filter(t=>t.date==d&&(!S.bal||txAfter(t))).reduce((a,t)=>a+t.amt,0)-qd;bal+=f;need-=f;prev=d;if(bal<low){low=bal;lowDay=d}}
- need+=qd; bal-=qd; // aujourd'hui compte aussi pour le budget du quotidien
- return {r,nxt,D,B,before:bal,low:Math.min(low,bal),lowDay:bal<low?dayAdd(nxt,-1):lowDay,need,qd,days:Math.max(D,1)}}
+ const cyc=Math.max(last?daysBetween(last,nxt):30,1),D=daysBetween(TD,nxt),qd=quotUndated()/cyc,pc=planCalc(),pd=pc.amt('poche')/cyc,B=balNow(),floor=-odLim();
+ // aujourd'hui compte aussi : quotidien sans date + argent de poche, au prorata des jours
+ let bal=(B||0)-qd-pd,low=bal,lowDay=TD,prev=TD,need=qd+pd;
+ for(let k=1;k<D;k++){const d=dayAdd(TD,k),f=flowBetween(prev,d)+S.tx.filter(t=>t.date==d&&(!S.bal||txAfter(t))).reduce((a,t)=>a+t.amt,0)-qd-pd;bal+=f;need-=f;prev=d;if(bal<low){low=bal;lowDay=d}}
+ // sous le découvert autorisé : on puise d'abord sur l'argent de poche (avant le point bas), puis sur l'investissement, puis sur l'épargne « pépin »
+ const def=Math.max(0,floor-low),pocheAvant=pd*(daysBetween(TD,lowDay)+1),cutP=Math.min(def,pocheAvant),cutI=Math.min(def-cutP,Math.max(0,pc.amt('invest'))),cutE=Math.min(def-cutP-cutI,Math.max(0,pepTot())),rest=Math.max(0,def-cutP-cutI-cutE);
+ return {r,nxt,D,B,before:bal,eve:bal+cutP+cutI+cutE,low,lowDay,need,qd,pd,poche:pd*D,floor,def,cutP,cutI,cutE,rest,days:Math.max(D,1)}}
 function fcCard(){const r=salRec();
- if(!r)return '<div class="card fc" role="button" tabindex="0" style="cursor:pointer" onclick="salF()"><b>💼 Mon salaire</b><small>Touche ici pour indiquer ton salaire et le jour où tu le reçois : l’appli te dira si tu tiens jusqu’au prochain.</small></div>';
+ if(!r)return '<div class="card fc" role="button" tabindex="0" style="cursor:pointer" onclick="salF()"><b>💼 Mon salaire</b><small>Touche ici pour indiquer ton salaire, le jour où tu le reçois et ton découvert à ne pas dépasser : l’appli te dira si tu tiens jusqu’au prochain.</small></div>';
  const f=forecast(),hd='<div class="pl-l"><b>💼 Salaire : '+eur(r.amt)+' le '+r.day+' du mois</b><button class="pill" style="border:0;cursor:pointer" onclick="salF()">Modifier</button></div>';
  if(!f)return '<div class="card fc">'+hd+'</div>';
- const when=dl(f.nxt)+' ('+inj(f.D).toLowerCase()+')';
- let body;
- if(f.B===null)body='<p>Prochain salaire : <b>'+when+'</b></p><p>D’ici là, tes dépenses prévues : <b>'+eur(Math.max(0,f.need))+'</b>.</p><p><a href="#" onclick="balF();return false">Définis ton solde actuel</a> pour savoir si ça passe.</p>';
- else if(f.before>=0)body='<p>Prochain salaire : <b>'+when+'</b></p><p>Il te restera environ <b class="pos">'+eur(f.before)+'</b> la veille.</p>'+(f.low<f.before-0.5?'<p>Point le plus bas : <b>'+eur(f.low)+'</b> le '+dl(f.lowDay)+'</p>':'')+'<p>Tu peux dépenser environ <b>'+eur(f.before/f.days)+' par jour</b> en plus de ce qui est prévu.</p>';
- else body='<p>Prochain salaire : <b>'+when+'</b></p><p class="neg"><b>⚠️ Il te manquera environ '+eur(-f.before)+'</b> avant ce salaire.</p>'+(f.low<0?'<p>Ton solde passerait sous zéro vers le <b>'+dl(dayAddFirstNeg(f))+'</b></p>':'')+'<p>Pense à décaler une dépense ou à puiser dans « En cas de pépin ».</p>';
- return '<div class="card fc">'+hd+body+'<small>Compte ton solde, tes revenus et dépenses fixes, crédits, abonnements, dépenses à venir et ton budget du quotidien au prorata des jours.</small></div>'}
-function dayAddFirstNeg(f){let bal=f.B||0,prev=TD;for(let k=1;k<f.D;k++){const d=dayAdd(TD,k);bal+=flowBetween(prev,d)+S.tx.filter(t=>t.date==d&&(!S.bal||txAfter(t))).reduce((a,t)=>a+t.amt,0)-f.qd;prev=d;if(bal<0)return d}return dayAdd(f.nxt,-1)}
+ const when=dl(f.nxt)+' ('+inj(f.D).toLowerCase()+')',lim=eur(f.floor);
+ let body='<p>Prochain salaire : <b>'+when+'</b></p>';
+ if(f.B===null)body+='<p>D’ici là, tes dépenses prévues : <b>'+eur(Math.max(0,f.need))+'</b> (argent de poche compris).</p><p><a href="#" onclick="balF();return false">Définis ton solde actuel</a> pour savoir si ça passe.</p>';
+ else if(!f.def){body+=(f.low<0?'<p>Point le plus bas : <b class="neg">'+eur(f.low)+'</b> le '+dl(f.lowDay)+' (limite : '+lim+').</p>':'')
+  +'<p>Argent de poche jusque-là : <b>'+eur(f.poche)+'</b> (≈ '+eur(f.pd)+' par jour).</p>'
+  +(f.before>0?'<p>La veille, il te restera environ <b class="pos">'+eur(f.before)+'</b> à mettre de côté.</p>':'<p>La veille, tu seras à <b>'+eur(f.before)+'</b>, dans ton découvert autorisé.</p>')}
+ else{body+='<p class="neg"><b>⚠️ Tu descendrais à '+eur(f.low)+' le '+dl(f.lowDay)+'</b>, sous ta limite de '+lim+'.</p><p>Pour rester au-dessus :</p><ul style="margin:4px 0 6px 18px;padding:0">'
+  +(f.cutP>0.005?(f.pd*(daysBetween(TD,f.lowDay)+1)-f.cutP<0.5?'<li>ne dépense <b>pas d’argent de poche</b> d’ici le '+dl(f.lowDay)+' (au lieu de '+eur(f.pd*(daysBetween(TD,f.lowDay)+1))+')</li>':'<li>dépense au plus <b>'+eur(f.pd*(daysBetween(TD,f.lowDay)+1)-f.cutP)+'</b> d’argent de poche d’ici le '+dl(f.lowDay)+' (au lieu de '+eur(f.pd*(daysBetween(TD,f.lowDay)+1))+')</li>'):'')
+  +(f.cutI>0.005?'<li>prends <b>'+eur(f.cutI)+'</b> sur ton investissement S&P 500 de ce mois</li>':'')
+  +(f.cutE>0.005?'<li>utilise <b>'+eur(f.cutE)+'</b> de ton épargne « En cas de pépin »</li>':'')+'</ul>'
+  +(f.rest>0.005?'<p class="neg"><b>Même ainsi, il manquerait '+eur(f.rest)+'</b> : décale une dépense ou un paiement.</p>':'')}
+ if(f.B!==null&&f.D<=1)body+='<button class="go" style="margin-top:8px" onclick="savF()">🐷 C’est la veille du salaire : mettre de côté</button>';
+ return '<div class="card fc">'+hd+body+'<small>Compte ton solde, tes revenus et dépenses fixes, crédits, abonnements, dépenses à venir, et ton budget du quotidien et ton argent de poche répartis sur les jours.</small></div>'}
+// ---------- S&P 500 : cours mis à jour chaque jour de bourse dans marche.json ----------
+let MK=null;
+function mkLoad(){fetch('marche.json?'+TD,{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.spx&&j.spx.length>1){MK=j;render()}}).catch(()=>{})}
+function mkAt(arr,d){let lo=0,hi=arr.length-1,ans=null;while(lo<=hi){const m=(lo+hi)>>1;if(arr[m][0]<=d){ans=arr[m][1];lo=m+1}else hi=m-1}return ans==null?arr[0][1]:ans}
+function idxEur(d){if(!MK)return null;return mkAt(MK.spx,d)/(MK.eurusd&&MK.eurusd.length?mkAt(MK.eurusd,d):1)}
+const mkLast=()=>MK?MK.spx[MK.spx.length-1][0]:null;
+function invStats(){const inv=S.inv||[],put=inv.reduce((a,i)=>a+(+i.amt),0);let val=null;
+ if(S.plan.pv!==''&&S.plan.pv!=null&&!isNaN(+S.plan.pv))val=+S.plan.pv;else if(MK&&inv.length){const now=idxEur(mkLast());val=inv.reduce((a,i)=>a+(+i.amt)*now/idxEur(i.date),0)}
+ return {put,val,gain:val==null?null:val-put}}
+function cagr(){if(!MK||MK.spx.length<500)return null;const a=MK.spx[0][0],b=mkLast(),y=daysBetween(a,b)/365.25;return y>1?Math.pow(idxEur(b)/idxEur(a),1/y)-1:null}
+function fv(V0,pmt,r,y){const rm=Math.pow(1+r,1/12)-1,n=y*12;return V0*Math.pow(1+r,y)+(rm?pmt*(Math.pow(1+rm,n)-1)/rm:pmt*n)}
+const pct=x=>(x>=0?'+':'')+(x*100).toFixed(1).replace('.',',')+' %';
+function rateNow(){const rc=cagr();return S.plan.rate!==''&&S.plan.rate!=null&&!isNaN(+S.plan.rate)?+S.plan.rate:(rc!=null?Math.round(rc*1000)/10:7)}
+function mkHTML(st){const d=mkLast(),L=MK.spx,pts=L[L.length-1][1],ch=pts/L[L.length-2][1]-1,y1=idxEur(d)/idxEur(addM(d,-12))-1,first=(S.inv||[]).map(i=>i.date).sort()[0],rc=cagr();
+ return '<p>Cours au '+dl(d)+' : <b>'+pts.toLocaleString('fr-FR')+' points</b> <span class="'+(ch>=0?'pos':'neg')+'">('+pct(ch)+' sur la séance)</span></p>'
+ +'<p>Sur 1 an, en euros : <b class="'+(y1>=0?'pos':'neg')+'">'+pct(y1)+'</b>'+(rc!=null?' · moyenne sur 10 ans : <b>'+pct(rc)+' par an</b>':'')+'</p>'
+ +(first&&first<=d?'<p>Depuis ton 1er achat ('+dl(first)+') : <b class="'+(idxEur(d)>=idxEur(first)?'pos':'neg')+'">'+pct(idxEur(d)/idxEur(first)-1)+'</b></p>':'')
+ +'<small>Indice S&P 500 converti en euros, hors dividendes et hors frais. Mis à jour automatiquement chaque soir de bourse.</small>'}
+function projRes(){const st=invStats(),V0=st.val==null?st.put:st.val,pmt=planCalc().amt('invest'),r=rateNow()/100;
+ return '<p>Avec <b>'+eur(V0)+'</b> aujourd’hui et <b>'+eur(pmt)+' par mois</b> (ton budget « Investissement ») :</p>'
+ +[1,5,10,20].map(y=>{const v=fv(V0,pmt,r,y),paid=V0+pmt*12*y;return '<div class="pl-l" style="margin-top:8px"><span>Dans '+y+' an'+(y>1?'s':'')+'</span><b>'+eur(v)+'</b></div><small style="margin-top:0">dont '+eur(paid)+' versés et <span class="'+(v-paid>=0?'pos':'neg')+'">'+eur(v-paid)+' d’intérêts</span></small>'}).join('')}
+function epargne(){const st=invStats(),pep=pepTot(),iv=st.val==null?st.put:st.val,rc=cagr();
+ let h='<h1>Épargne</h1><div class="sum"><div class="big"><small>Ton patrimoine (épargne + investissements)</small><b class="pos">'+eur(pep+iv)+'</b></div><div><small>🛟 Épargne de précaution</small><b>'+eur(pep)+'</b></div><div><small>📈 S&P 500</small><b>'+eur(iv)+'</b>'+(st.gain!=null&&st.put?'<small class="'+(st.gain>=0?'pos':'neg')+'" style="margin-top:2px">'+(st.gain>=0?'+':'')+eur(st.gain)+' ('+pct(st.gain/st.put)+')</small>':'')+'</div></div>';
+ h+='<div class="seg" style="margin-top:12px"><button type="button" onclick="savF()">🐷 Mettre de côté</button><button type="button" onclick="invF()">📈 Ajouter un achat</button><button type="button" onclick="wdF()">↩︎ Utiliser mon épargne</button></div>';
+ h+='<h2>S&P 500</h2><div class="card fc">'+(MK?mkHTML(st):'<p>Le cours n’est pas encore disponible : la mise à jour automatique (chaque soir de bourse) n’a pas encore tourné.</p>')
+  +'<label>Valeur actuelle de mon portefeuille (€, facultatif)</label><input type="number" inputmode="decimal" step="0.01" value="'+esc(S.plan.pv==null?'':S.plan.pv)+'" placeholder="'+(MK&&st.put?'Calculée : '+(st.put&&MK?(S.inv.reduce((a,i)=>a+(+i.amt)*idxEur(mkLast())/idxEur(i.date),0)).toFixed(2):''):'Ex. 250')+'" onchange="pvIn(this.value)"><small>Laisse vide pour la calculer avec le cours. Remplis-la pour recopier la valeur exacte affichée par ton courtier (frais et dividendes compris).</small></div>';
+ h+='<h2>Intérêts composés</h2><div class="card fc"><label style="margin-top:0">Rendement annuel supposé (%)</label><input type="number" inputmode="decimal" step="0.1" value="'+esc(S.plan.rate==null?'':S.plan.rate)+'" placeholder="'+String(rateNow()).replace('.',',')+'" oninput="rateIn(this.value)"><small>'+(rc!=null?'Par défaut : la moyenne des 10 dernières années ('+pct(rc)+' par an, en euros). ':'Par défaut : 7 % par an. ')+'Le passé ne garantit pas l’avenir : la bourse peut aussi baisser.</small><div id="projres">'+projRes()+'</div></div>';
+ const hist=[...(S.sav||[]).map(x=>({...x,k:'sav'})),...(S.inv||[]).map(x=>({...x,k:'inv',dest:'invest'}))].sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
+ h+='<h2>Historique</h2><div class="card">'+(hist.length?hist.map(x=>'<div class="row"><div class="t"><b>'+(x.dest=='invest'?'📈 S&P 500':x.amt<0?'↩︎ Retrait de l’épargne':'🛟 Épargne de précaution')+'</b><small>'+dl(x.date)+(x.note?' · '+esc(x.note):'')+(x.k=='inv'&&MK?' · vaut '+eur(+x.amt*idxEur(mkLast())/idxEur(x.date))+' aujourd’hui':'')+'</small></div><b class="'+(x.amt>=0?'pos':'neg')+'" style="flex:none">'+(x.amt>=0?'+':'')+eur(+x.amt)+'</b><button class="x" aria-label="Supprimer" onclick="delSav(\''+x.k+'\',\''+x.id+'\')">✕</button></div>').join(''):'<div class="empty">Rien pour l’instant. La veille de ton salaire, touche « Mettre de côté ».</div>')+'</div>';
+ return h}
+let RT=null;
+function rateIn(v){S.plan.rate=v;const e=$('#projres');if(e)e.innerHTML=projRes();clearTimeout(RT);RT=setTimeout(save,600)}
+function pvIn(v){S.plan.pv=v===''?null:v;save();render()}
+const chk=(id,txt)=>'<label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input id="'+id+'" type="checkbox" checked style="width:auto"> '+txt+'</label>';
+function savF(){const f=forecast(),sug=f&&f.B!==null?Math.max(0,Math.floor(f.D<=1?balNow():f.eve)):0,inv=Math.min(sug,Math.round(planCalc().amt('invest')));
+ sheet('<h2 style="margin-top:0">Mettre de côté</h2><small style="color:var(--mu);font-size:12.5px;display:block">'+(f&&f.B!==null?(f.D<=1?'C’est la veille de ton salaire : il te reste '+eur(balNow())+'.':'D’après la prévision, il devrait te rester environ '+eur(f.eve)+' la veille de ton salaire.'):'Indique ce que tu mets de côté.')+'</small>'
+ +'<label>🛟 Vers mon épargne « En cas de pépin » (€)</label><input id="v_p" type="number" inputmode="decimal" step="0.01" min="0" value="'+(sug-inv||'')+'">'
+ +'<label>📈 Investi dans le S&P 500 (€)</label><input id="v_i" type="number" inputmode="decimal" step="0.01" min="0" value="'+(inv||'')+'">'
+ +'<label>Date</label><input id="v_d" type="date" value="'+TD+'">'+chk('v_t','Retirer ces sommes de mon compte courant')+'<button class="go" onclick="saveSav()">Enregistrer</button>')}
+function saveSav(){const p=parseFloat($('#v_p').value)||0,i=parseFloat($('#v_i').value)||0,d=$('#v_d').value||TD;if(p<0||i<0||!(p+i>0)){alert('Indique un montant à mettre de côté.');return}
+ if(p>0)S.sav.push({id:uid(),date:d,amt:Math.round(p*100)/100,dest:'pepin'});if(i>0)S.inv.push({id:uid(),date:d,amt:Math.round(i*100)/100});
+ if($('#v_t').checked)S.tx.push({id:uid(),label:p&&i?'Épargne + S&P 500':p?'Épargne « En cas de pépin »':'Investissement S&P 500',date:d,amt:-Math.round((p+i)*100)/100,cat:'Épargne',ct:Date.now()});save();closeF();render()}
+function invF(){sheet('<h2 style="margin-top:0">Achat S&P 500</h2><label>Montant investi (€)</label><input id="i_a" type="number" inputmode="decimal" step="0.01" placeholder="Ex. 20"><label>Date de l’achat</label><input id="i_d" type="date" value="'+TD+'"><label>Note (facultatif)</label><input id="i_n" placeholder="Ex. ETF sur mon PEA">'+chk('i_t','Retirer ce montant de mon compte courant')+'<button class="go" onclick="saveInv()">Enregistrer</button>')}
+function saveInv(){const a=parseFloat($('#i_a').value),d=$('#i_d').value||TD;if(!(a>0)){alert('Indique le montant investi.');return}S.inv.push({id:uid(),date:d,amt:Math.round(a*100)/100,note:$('#i_n').value.trim()});if($('#i_t').checked)S.tx.push({id:uid(),label:'Investissement S&P 500',date:d,amt:-Math.round(a*100)/100,cat:'Épargne',ct:Date.now()});save();closeF();render()}
+function wdF(){sheet('<h2 style="margin-top:0">Utiliser mon épargne</h2><small style="color:var(--mu);font-size:12.5px;display:block">Ton épargne « En cas de pépin » : '+eur(pepTot())+'.</small><label>Montant repris (€)</label><input id="w_a" type="number" inputmode="decimal" step="0.01"><label>Date</label><input id="w_d" type="date" value="'+TD+'">'+chk('w_t','Remettre ce montant sur mon compte courant')+'<button class="go" onclick="saveWd()">Enregistrer</button>')}
+function saveWd(){const a=parseFloat($('#w_a').value),d=$('#w_d').value||TD;if(!(a>0)){alert('Indique le montant repris.');return}S.sav.push({id:uid(),date:d,amt:-Math.round(a*100)/100,dest:'pepin'});if($('#w_t').checked)S.tx.push({id:uid(),label:'Retrait de l’épargne',date:d,amt:Math.round(a*100)/100,cat:'Revenu',ct:Date.now()});save();closeF();render()}
+function delSav(k,id){if(!confirm('Supprimer cette ligne ? Le mouvement correspondant dans ton budget n’est pas supprimé.'))return;if(k=='inv')S.inv=S.inv.filter(x=>x.id!=id);else S.sav=S.sav.filter(x=>x.id!=id);save();render()}
 function salF(){const r=salRec();let days='';for(let i=1;i<=31;i++)days+='<option value="'+i+'"'+((r?r.day:1)==i?' selected':'')+'>le '+i+'</option>';
- sheet('<h2 style="margin-top:0">Mon salaire</h2><label>Montant net reçu (€)</label><input id="s_a" type="number" inputmode="decimal" step="0.01" value="'+(r?r.amt:'')+'" placeholder="Ex. 1800"><label>Je le reçois chaque mois</label><select id="s_d">'+days+'</select><small style="color:var(--mu);font-size:12px;display:block;margin-top:6px">Si le jour n’existe pas dans un mois (31…), c’est le dernier jour du mois. Le salaire est ajouté à tes revenus fixes et à « Mon budget du mois ».</small><button class="go" onclick="saveSal()">Enregistrer</button>'+(r?'<button class="go" style="background:var(--ln);color:var(--ink);margin-top:8px" onclick="stopSal()">Je ne reçois plus ce salaire</button>':''))}
-function saveSal(){const a=parseFloat($('#s_a').value),day=+$('#s_d').value;if(!(a>0)){alert('Indique le montant de ton salaire.');return}
+ sheet('<h2 style="margin-top:0">Mon salaire</h2><label>Montant net reçu (€)</label><input id="s_a" type="number" inputmode="decimal" step="0.01" value="'+(r?r.amt:'')+'" placeholder="Ex. 1800"><label>Je le reçois chaque mois</label><select id="s_d">'+days+'</select><small style="color:var(--mu);font-size:12px;display:block;margin-top:6px">Si le jour n’existe pas dans un mois (31…), c’est le dernier jour du mois. Le salaire est ajouté à tes revenus fixes et à « Mon budget du mois ».</small><label>Découvert à ne jamais dépasser (€)</label><input id="s_o" type="number" inputmode="decimal" step="1" min="0" value="'+esc(odLim())+'"><small style="color:var(--mu);font-size:12px;display:block;margin-top:6px">Au-delà, ta banque te prend des agios. L’appli puise d’abord sur ton argent de poche, puis sur ton investissement, pour ne pas descendre plus bas.</small><button class="go" onclick="saveSal()">Enregistrer</button>'+(r?'<button class="go" style="background:var(--ln);color:var(--ink);margin-top:8px" onclick="stopSal()">Je ne reçois plus ce salaire</button>':''))}
+function saveSal(){const a=parseFloat($('#s_a').value),day=+$('#s_d').value,od=parseFloat($('#s_o').value);if(!(a>0)){alert('Indique le montant de ton salaire.');return}S.plan.od=isNaN(od)?200:Math.max(0,od);
  const y=+TD.slice(0,4),m=+TD.slice(5,7)-1;let st=y+'-'+pad(m+1)+'-'+pad(Math.min(day,dim(y,m)));if(st>TD){const Y=m?y:y-1,M=m?m-1:11;st=Y+'-'+pad(M+1)+'-'+pad(Math.min(day,dim(Y,M)))}
  const r=salRec();if(r){r.amt=a;r.day=day;if(st<r.start)r.start=st}else S.rec.push({id:uid(),sal:1,label:'Salaire',amt:a,cat:'Revenu',day,start:st});save();closeF();render()}
 function stopSal(){const r=salRec();if(r&&confirm('Arrêter ce salaire ? Les mois passés restent dans l’historique.')){r.end=TD;save();closeF();render()}}
 function render(){
- const t=S.tab;$('#app').innerHTML=t=='home'?home():t=='ag'?agenda():t=='bu'?budget():t=='de'?dettes():rappels();
- $('#nav').innerHTML=[['home','🏠','Accueil'],['ag','📅','Agenda'],['bu','💶','Budget'],['de','💳','Dettes'],['re','⏳','Échéances']].map(a=>'<button class="'+(t==a[0]?'on':'')+'" onclick="S.tab=\''+a[0]+'\';render();scrollTo(0,0)"><span>'+a[1]+'</span>'+a[2]+'</button>').join('');noteSync();planRender()}
+ const t=S.tab;$('#app').innerHTML=t=='home'?home():t=='ag'?agenda():t=='bu'?budget():t=='de'?dettes():t=='ep'?epargne():rappels();
+ $('#nav').innerHTML=[['home','🏠','Accueil'],['ag','📅','Agenda'],['bu','💶','Budget'],['de','💳','Dettes'],['ep','🐷','Épargne'],['re','⏳','Échéances']].map(a=>'<button class="'+(t==a[0]?'on':'')+'" onclick="S.tab=\''+a[0]+'\';render();scrollTo(0,0)"><span>'+a[1]+'</span>'+a[2]+'</button>').join('');noteSync();planRender()}
 function $(s){return document.querySelector(s)}
 function mv(k,d){let m=S[k+'m']+d,y=S[k+'y'];if(m<0){m=11;y--}if(m>11){m=0;y++}S[k+'m']=m;S[k+'y']=y;render()}
 function delIt(id){if(confirm('Supprimer cet élément ?')){S.items=S.items.filter(i=>i.id!=id);save();render()}}
 function delTx(id){S.tx=S.tx.filter(i=>i.id!=id);save();render()}
 let F={};
 function seg(k,opts,cur){return '<div class="seg">'+opts.map(o=>'<button type="button" class="'+(cur==o[0]?'on':'')+'" onclick="F.'+k+'=\''+o[0]+'\';showForm()">'+o[1]+'</button>').join('')+'</div>'}
-function openForm(){$('#sh').innerHTML='';F=S.tab=='de'?{k:'debt',dm:'debt',dir:'owe',rep:'monthly'}:S.tab=='bu'?{k:'tx',kind:'out',freq:'once'}:{k:'it',type:S.tab=='re'?'renouv':'rdv',rep:'none'};showForm()}
+function openForm(){if(S.tab=='ep')return savF();$('#sh').innerHTML='';F=S.tab=='de'?{k:'debt',dm:'debt',dir:'owe',rep:'monthly'}:S.tab=='bu'?{k:'tx',kind:'out',freq:'once'}:{k:'it',type:S.tab=='re'?'renouv':'rdv',rep:'none'};showForm()}
 function annivSel(d){const dd=+(F.dd||d.slice(8)),mm=F.mm||d.slice(5,7);let a='',b='';for(let i=1;i<=31;i++)a+='<option value="'+i+'"'+(i==dd?' selected':'')+'>'+i+'</option>';MO.forEach((n,i)=>{const v=pad(i+1);b+='<option value="'+v+'"'+(v==mm?' selected':'')+'>'+n+'</option>'});return '<div style="display:flex;gap:8px"><select id="f_dd" aria-label="Jour" style="flex:1">'+a+'</select><select id="f_mm" aria-label="Mois" style="flex:2">'+b+'</select></div><small style="color:var(--mu);font-size:12px;display:block;margin-top:4px">Rappelé chaque année, pas besoin de l’année.</small>'}
 function showForm(){
  const v=id=>($('#'+id)||{}).value;if($('#f_t'))F.t=v('f_t'),F.d=v('f_d'),F.a=v('f_a'),F.n=v('f_n'),F.c=v('f_c'),F.l=v('f_l'),F.tot=v('f_tot'),F.dd=v('f_dd')||F.dd,F.mm=v('f_mm')||F.mm,F.cap=v('f_cap')??F.cap,F.rate=v('f_rate')??F.rate,F.dur=v('f_dur')??F.dur,F.dfm=v('f_dfm')??F.dfm,F.ins=v('f_ins')??F.ins;
@@ -287,5 +344,5 @@ function dettes(){
 function delDebt(id){if(confirm('Supprimer cette dette ?')){S.debts=S.debts.filter(d=>d.id!=id);save();render()}}
 function payF(id){const d=S.debts.find(x=>x.id==id);if(!d)return;const own=d.dir=='owe';sheet('<h2 style="margin-top:0">'+(own?'Remboursement à ':'Remboursement de ')+esc(d.who)+'</h2><label>Montant (€)</label><input id="p_a" type="number" inputmode="decimal" step="0.01" value="'+dLeft(d)+'"><label>Date</label><input id="p_d" type="date" value="'+TD+'"><label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input id="p_b" type="checkbox" checked style="width:auto"> Ajouter aussi au budget ('+(own?'dépense':'revenu')+')</label><button class="go" onclick="savePay(\''+id+'\')">Enregistrer</button>')}
 function savePay(id){const d=S.debts.find(x=>x.id==id),a=parseFloat($('#p_a').value),dt=$('#p_d').value||TD;if(!d||!(a>0)){alert('Indique un montant positif.');return}const own=d.dir=='owe';d.pays=(d.pays||[]).concat({a:Math.min(a,dLeft(d)),d:dt});if($('#p_b').checked)S.tx.push({id:uid(),ct:Date.now(),label:'Remboursement '+(own?'à ':'de ')+d.who,date:dt,amt:own?-a:a,cat:own?'Dettes':'Revenu'});save();closeF();render()}
-$('#fab').onclick=openForm;
+$('#fab').onclick=openForm;mkLoad();
 render();
