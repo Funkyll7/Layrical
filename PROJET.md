@@ -6,6 +6,9 @@
 marche.json             cours du S&P 500 et EUR/USD (10 ans), écrit chaque soir de bourse par la tâche ci-dessous
 scripts/marche.mjs      récupère les cours (Yahoo Finance, secours Stooq) et écrit marche.json
 .github/workflows/marche.yml  tâche GitHub quotidienne (et bouton « Run workflow ») qui lance le script
+scripts/rappels-calc.mjs  calcul des notifications (même logique de répétition que app.js, sans dépendance)
+scripts/rappels.mjs     envoi des notifications push (web-push) ; lit le dépôt de données avec le secret DATA_TOKEN
+.github/workflows/rappels.yml  tâche horaire : résumé du matin + rappel 1 h avant un rendez-vous avec heure
 index.html              structure de la page unique
 sw.js                   cache hors ligne (réseau d'abord ; API GitHub jamais interceptée)
 manifest.webmanifest    installation sur l'écran d'accueil
@@ -39,6 +42,12 @@ assets/img/             favicon.svg, icône SVG (pas de PNG)
 - `plan.rate` : rendement supposé pour les intérêts composés (par défaut, moyenne 10 ans en euros, `cagr()`).
 - `notes` : texte du bloc-notes (panneau à droite ≥ 1000 px, bouton 📝 + fenêtre en dessous) ; `noteIn()` enregistre 0,6 s après la frappe.
 - `ts` : date de dernière modification (la plus récente gagne à la synchro)
+
+## Notifications
+L'appli crée une paire de clés VAPID (`genKeys`) : la publique est enregistrée dans les données (`pushKey`), la privée est copiée par toi dans le secret GitHub `VAPID_PRIVATE_KEY`. Chaque appareil s'inscrit (`subNotif`) et son abonnement est stocké dans `subs`. `sw.js` affiche les notifications reçues. Secrets nécessaires dans Layrical : `VAPID_PRIVATE_KEY` et `DATA_TOKEN`.
+
+## Coûts de renouvellement
+`COUTS` dans app.js : coûts connus (passeport 86 €, CNI gratuite…) proposés dans Échéances et ajoutés automatiquement à un nouveau renouvellement.
 
 ## Graphiques
 Faits main en SVG/HTML (aucune bibliothèque) dans app.js, section « Graphiques » : `lineChart` (solde jour par jour + réticule), `hbars` (barres classées, une teinte), `segBar` (où va l'argent), `colChart` (revenus/dépenses par mois, mois à venir en clair). Couleurs `--c1…--c6` (palette validée daltonisme, clair et sombre) dans app.css ; infobulle commune via l'attribut `data-tip`.
