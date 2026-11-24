@@ -27,6 +27,8 @@ assets/img/             favicon.svg, icône SVG (pas de PNG)
 - `bal` : `{amt, date, at}` : solde saisi à une date. Solde actuel = `bal.amt` + mouvements postérieurs + flux automatiques (`flowBetween` : fixes, mensualités de crédit, abonnements chiffrés). Voir `balNow()` / `balEom()`.
 - `bud` : plafond mensuel par catégorie, `{ "Courses": 400 }`
 - `plan` : `{inc, p: {poche, invest, pepin}}` : revenu saisi (vide = revenus fixes) et pourcentages du reste après charges fixes. Panneau à gauche ≥ 1340 px, bouton 💰 sinon (`planHTML`, `planCalc`).
+- Salaire : entrée de `rec` avec `sal: 1` (fenêtre `salF`). `forecast()` simule jour par jour le solde jusqu'au prochain salaire (flux automatiques + mouvements à venir + quotidien sans date au prorata) ; carte `fcCard()` sur l'accueil et dans Budget.
+- `plan.extra` : somme en plus par mois pour rembourser. `debtList()` (capital restant réel des crédits), `simPay()` (avalanche + boule de neige), `payoffCard()` dans l'onglet Dettes.
 - `notes` : texte du bloc-notes (panneau à droite ≥ 1000 px, bouton 📝 + fenêtre en dessous) ; `noteIn()` enregistre 0,6 s après la frappe.
 - `ts` : date de dernière modification (la plus récente gagne à la synchro)
 
