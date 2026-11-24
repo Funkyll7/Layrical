@@ -1,8 +1,8 @@
 /* app.js — état, vues, formulaires. La synchro vit dans sync.js. */
 const TY={rdv:['Rendez-vous','#2f6fdb','🗓️'],anniv:['Anniversaire','#d6479a','🎂'],travail:['Quotidien','#b7791f','🛒'],renouv:['Renouvellement','#c8372d','🪪'],abo:['Abonnement','#7a4fd1','🔁'],credit:['Crédit','#0f766e','🏦'],fois:['En plusieurs fois','#b45309','🧾']};
 const CATS=['Logement','Courses','Transport','Loisirs','Santé','Factures','Dettes','Autre'];
-const RP={none:'Une seule fois',monthly:'Chaque mois',m2:'Tous les 2 mois',m3:'Tous les 3 mois',m6:'Tous les 6 mois',yearly:'Chaque année'};
-const repMonths=r=>r=='monthly'?1:r=='yearly'?12:/^m\d+$/.test(r||'')?+r.slice(1):0;
+const RP={none:'Une seule fois',weekly:'Chaque semaine',monthly:'Chaque mois',m2:'Tous les 2 mois',m3:'Tous les 3 mois',m6:'Tous les 6 mois',yearly:'Chaque année'};
+const repMonths=r=>r=='weekly'?12/52:r=='monthly'?1:r=='yearly'?12:/^m\d+$/.test(r||'')?+r.slice(1):0;
 const MO=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 const pad=n=>String(n).padStart(2,'0');
 const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -26,7 +26,7 @@ function hol(y){if(hc[y])return hc[y];const e=easter(y),add=n=>{const d=new Date
 return hc[y]={[f(1,1)]:"Jour de l’an",[add(1)]:'Lundi de Pâques',[f(5,1)]:'Fête du travail',[f(5,8)]:'Victoire 1945',[add(39)]:'Ascension',[add(50)]:'Lundi de Pentecôte',[f(7,14)]:'Fête nationale',[f(8,15)]:'Assomption',[f(11,1)]:'Toussaint',[f(11,11)]:'Armistice',[f(12,25)]:'Noël'}}
 const holName=s=>hol(+s.slice(0,4))[s];
 function dim(y,m){return new Date(y,m+1,0).getDate()}
-function occ(it,s){if(it.rep=='none')return it.date==s;if(it.date>s)return false;if(isInst(it)&&s>credEnd(it))return false;if(it.stu&&!payAt(it,mdiff(it.date,s)))return false;if(it.rep=='yearly'){const md=it.date.slice(5);return (md=='02-29'&&dim(+s.slice(0,4),1)==28?'02-28':md)==s.slice(5)}const d=+it.date.slice(8),y=+s.slice(0,4),m=+s.slice(5,7)-1,N=repMonths(it.rep)||1,gap=(y-+it.date.slice(0,4))*12+m-(+it.date.slice(5,7)-1);return gap%N==0&&+s.slice(8)==Math.min(d,dim(y,m))}
+function occ(it,s){if(it.rep=='none')return it.date==s;if(it.date>s)return false;if(isInst(it)&&s>credEnd(it))return false;if(it.stu&&!payAt(it,mdiff(it.date,s)))return false;if(it.rep=='weekly')return Math.round((P(s)-P(it.date))/864e5)%7==0;if(it.rep=='yearly'){const md=it.date.slice(5);return (md=='02-29'&&dim(+s.slice(0,4),1)==28?'02-28':md)==s.slice(5)}const d=+it.date.slice(8),y=+s.slice(0,4),m=+s.slice(5,7)-1,N=repMonths(it.rep)||1,gap=(y-+it.date.slice(0,4))*12+m-(+it.date.slice(5,7)-1);return gap%N==0&&+s.slice(8)==Math.min(d,dim(y,m))}
 function addM(s,k){const y=+s.slice(0,4),m=+s.slice(5,7)-1+k,d=+s.slice(8),Y=y+Math.floor(m/12),M=((m%12)+12)%12;return Y+'-'+pad(M+1)+'-'+pad(Math.min(d,dim(Y,M)))}
 const isInst=it=>it.type=='credit'||it.type=='fois';
 function mdiff(a,b){return (+b.slice(0,4)-+a.slice(0,4))*12+(+b.slice(5,7))-(+a.slice(5,7))}
