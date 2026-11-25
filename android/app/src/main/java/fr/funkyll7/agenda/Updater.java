@@ -70,11 +70,14 @@ final class Updater {
         return null;
     }
 
-    /** À l'ouverture de l'appli : propose la mise à jour (au plus une vérification par heure, sauf force). */
+    /**
+     * À chaque ouverture de l'appli : s'il y a une version plus récente, elle se télécharge et s'installe toute seule.
+     * Seule la toute première fois, Android demande d'autoriser Agenda à installer des applis.
+     */
     static void check(Activity a, boolean force) {
         SharedPreferences p = a.getSharedPreferences(P, Context.MODE_PRIVATE);
         long now = System.currentTimeMillis();
-        if (!force && now - p.getLong("checked", 0) < 3600_000L) return;
+        if (!force && now - p.getLong("checked", 0) < 2 * 60_000L) return;
         p.edit().putLong("checked", now).apply();
         new Thread(() -> {
             try {
@@ -82,61 +85,68 @@ final class Updater {
                 if (l == null || (long) l[0] <= current(a)) return;
                 long v = (long) l[0];
                 String url = (String) l[1];
-                if (!force && p.getLong("later", 0) == v && now - p.getLong("laterAt", 0) < 12 * 3600_000L) return;
                 new Handler(Looper.getMainLooper()).post(() -> {
                     if (a.isFinishing()) return;
-                    new AlertDialog.Builder(a)
-                            .setTitle("Nouvelle version de l’appli")
-                            .setMessage("La version 1.0." + v + " est disponible (tu as la 1.0." + current(a) + "). Tes données ne bougent pas.")
-                            .setPositiveButton("Mettre à jour", (d, w) -> install(a, url))
-                            .setNegativeButton("Plus tard", (d, w) -> p.edit().putLong("later", v).putLong("laterAt", System.currentTimeMillis()).apply())
-                            .show();
+                    if (!a.getPackageManager().canRequestPackageInstalls()) {
+                        new AlertDialog.Builder(a)
+                                .setTitle("Mises à jour automatiques")
+                                .setMessage("La version 1.0." + v + " est disponible. Pour que l’appli se mette à jour toute seule, autorise une fois Agenda à installer des applis, puis reviens ici.")
+                                .setPositiveButton("Autoriser", (d, w) -> a.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + a.getPackageName()))))
+                                .setNegativeButton("Plus tard", null)
+                                .show();
+                        return;
+                    }
+                    if (!force && p.getLong("tried", 0) == v && now - p.getLong("triedAt", 0) < 10 * 60_000L) return;
+                    Toast.makeText(a, "Mise à jour vers la version 1.0." + v + "…", Toast.LENGTH_SHORT).show();
+                    install(a, url, v);
                 });
             } catch (Exception ignored) { }
         }).start();
     }
 
-    /** En arrière-plan : une notification « mise à jour disponible » (au plus toutes les 6 h). */
+    /** En arrière-plan (au plus toutes les 3 h) : installe aussi toute seule si Android le permet, sinon notification. */
     static void checkQuiet(Context c) {
         SharedPreferences p = c.getSharedPreferences(P, Context.MODE_PRIVATE);
         long now = System.currentTimeMillis();
-        if (now - p.getLong("quiet", 0) < 6 * 3600_000L) return;
+        if (now - p.getLong("quiet", 0) < 3 * 3600_000L) return;
         p.edit().putLong("quiet", now).apply();
         new Thread(() -> {
             try {
                 Object[] l = latest();
-                if (l == null || (long) l[0] <= current(c) || p.getLong("notified", 0) == (long) l[0]) return;
-                p.edit().putLong("notified", (long) l[0]).apply();
-                if (!Notif.enabled(c)) return;
-                Notif.channel(c);
+                if (l == null || (long) l[0] <= current(c)) return;
+                long v = (long) l[0];
+                if (c.getPackageManager().canRequestPackageInstalls()) { install(c, (String) l[1], v); return; }
+                if (p.getLong("notified", 0) == v) return;
+                p.edit().putLong("notified", v).apply();
                 Intent open = new Intent(c, MainActivity.class).setAction(ACTION).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                PendingIntent pi = PendingIntent.getActivity(c, 5, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-                Notification n = new Notification.Builder(c, Notif.CH)
-                        .setSmallIcon(R.drawable.ic_notif).setColor(0xFF0E6B6B)
-                        .setContentTitle("📲 Mise à jour de l’appli Agenda")
-                        .setContentText("La version 1.0." + l[0] + " est prête : touche pour l’installer.")
-                        .setContentIntent(pi).setAutoCancel(true).build();
-                c.getSystemService(NotificationManager.class).notify(777, n);
+                notify(c, "La version 1.0." + v + " est prête : touche pour l’installer.",
+                        PendingIntent.getActivity(c, 5, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
             } catch (Exception ignored) { }
         }).start();
     }
 
-    static void install(Activity a, String url) {
-        if (!a.getPackageManager().canRequestPackageInstalls()) {
-            Toast.makeText(a, "Autorise l’installation pour Agenda, puis reviens : la mise à jour te sera reproposée.", Toast.LENGTH_LONG).show();
-            a.getSharedPreferences(P, Context.MODE_PRIVATE).edit().putLong("checked", 0).apply();
-            a.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + a.getPackageName())));
-            return;
-        }
+    static void notify(Context c, String text, PendingIntent pi) {
+        if (!Notif.enabled(c)) return;
+        Notif.channel(c);
+        Notification n = new Notification.Builder(c, Notif.CH)
+                .setSmallIcon(R.drawable.ic_notif).setColor(0xFF0E6B6B)
+                .setContentTitle("📲 Mise à jour de l’appli Agenda")
+                .setContentText(text)
+                .setContentIntent(pi).setAutoCancel(true).build();
+        c.getSystemService(NotificationManager.class).notify(777, n);
+    }
+
+    static void install(Context ctx, String url, long v) {
         if (busy) return;
         busy = true;
-        Toast.makeText(a, "Téléchargement de la mise à jour…", Toast.LENGTH_SHORT).show();
-        final Context c = a.getApplicationContext();
+        final Context c = ctx.getApplicationContext();
+        c.getSharedPreferences(P, Context.MODE_PRIVATE).edit().putLong("tried", v).putLong("triedAt", System.currentTimeMillis()).apply();
         new Thread(() -> {
             try {
                 PackageInstaller pi = c.getPackageManager().getPackageInstaller();
                 PackageInstaller.SessionParams sp = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
                 sp.setAppPackageName(c.getPackageName());
+                // Android 12+ : sans confirmation quand l'appli s'est déjà mise à jour elle-même une fois
                 if (Build.VERSION.SDK_INT >= 31) sp.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED);
                 int id = pi.createSession(sp);
                 PackageInstaller.Session s = pi.openSession(id);

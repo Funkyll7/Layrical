@@ -17,6 +17,8 @@ public class MainActivity extends Activity {
     private WebView w;
     private static MainActivity live; // appli au premier plan
 
+    static boolean isOpen() { return live != null; }
+
     /** Un paiement vient d'être lu : si l'appli est ouverte, elle l'ajoute tout de suite. */
     static boolean importNow() {
         MainActivity a = live;
