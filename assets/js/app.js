@@ -43,7 +43,9 @@ const dueOn=s=>S.debts.filter(d=>d.due==s&&dLeft(d)>0);
 function next(it){if(it.rep=='none')return it.date;let d=P(TD);for(let i=0;i<400;i++){const s=iso(d);if(s>=it.date&&occ(it,s))return s;d.setDate(d.getDate()+1)}return it.date}
 const on=s=>S.items.filter(i=>occ(i,s));
 function pill(n){return '<span class="pill'+(n<0?' d':n<=30?' d':n<=90?' w':'')+'">'+(n<0?'Expiré':inj(n))+'</span>'}
-function itemRow(it,s){const t=TY[it.type];return '<div class="row"><span class="dot" style="background:'+t[1]+'"></span><div class="t"><b>'+t[2]+' '+esc(it.title)+'</b><small>'+(s?dl(s)+(it.time?' à '+it.time:'')+' · ':it.time?it.time+' · ':'')+t[0]+(it.amt?' · '+eur(it.stu&&s?payAt(it,mdiff(it.date,s)):+it.amt)+(isInst(it)?'/mois':it.type=='travail'&&repMonths(it.rep)?' · '+RP[it.rep].toLowerCase():''):'')+(it.type=='renouv'&&it.amt===0?' · gratuit':'')+(it.note?' · '+esc(it.note):'')+'</small></div>'+(s?pill(diff(s)):'')+'<button class="x" aria-label="Modifier" onclick="openEdit(\'it\',\''+it.id+'\')">✎</button><button class="x" aria-label="Supprimer" onclick="delIt(\''+it.id+'\')">✕</button></div>'}
+const isDone=(it,s)=>!!(s&&it.dn&&it.dn.includes(s));
+function doneIt(id,s){const it=S.items.find(x=>x.id==id);if(!it||!s)return;const was=isDone(it,s);it.dn=(it.dn||[]).filter(d=>d!=s&&d>=dayAdd(TD,-400));if(!was)it.dn.push(s);if(!it.dn.length)delete it.dn;save();render()}
+function itemRow(it,s){const t=TY[it.type],dn=isDone(it,s);return '<div class="row'+(dn?' done':'')+'"><span class="dot" style="background:'+t[1]+'"></span><div class="t"><b>'+t[2]+' '+esc(it.title)+'</b><small>'+(s?dl(s)+(it.time?' à '+it.time:'')+' · ':it.time?it.time+' · ':'')+t[0]+(it.amt?' · '+eur(it.stu&&s?payAt(it,mdiff(it.date,s)):+it.amt)+(isInst(it)?'/mois':it.type=='travail'&&repMonths(it.rep)?' · '+RP[it.rep].toLowerCase():''):'')+(it.type=='renouv'&&it.amt===0?' · gratuit':'')+(it.note?' · '+esc(it.note):'')+(dn?' · ✓ fait':'')+'</small></div>'+(s&&!dn?pill(diff(s)):'')+(it.type=='rappel'&&s?'<button class="x dn'+(dn?' on':'')+'" aria-label="'+(dn?'Marquer comme pas fait':'Marquer comme fait')+'" title="'+(dn?'Annuler « fait »':'C’est fait')+'" onclick="doneIt(\''+it.id+'\',\''+s+'\')">✓</button>':'')+'<button class="x" aria-label="Modifier" onclick="openEdit(\'it\',\''+it.id+'\')">✎</button><button class="x" aria-label="Supprimer" onclick="delIt(\''+it.id+'\')">✕</button></div>'}
 function holRow(s,n){return '<div class="row"><span class="dot" style="background:#0e9f6e"></span><div class="t"><b>🇫🇷 '+esc(n)+'</b><small>'+dl(s)+' · Jour férié</small></div>'+pill(diff(s))+'</div>'}
 function monthTx(y,m){return S.tx.filter(t=>t.date.slice(0,7)==y+'-'+pad(m+1))}
 function subMonthly(){return S.items.filter(i=>i.type=='abo'&&i.amt&&i.rep!='none'&&next(i)>=TD).reduce((a,i)=>a+(+i.amt/(repMonths(i.rep)||12)),0)}
@@ -68,7 +70,7 @@ function delBal(){S.bal=null;save();closeF();render()}
 function stopRec(id){const r=S.rec.find(x=>x.id==id);if(!r||!confirm('Arrêter « '+r.label+' » ? Les mois passés restent dans l’historique.'))return;if(r.start>TD)S.rec=S.rec.filter(x=>x!==r);else r.end=TD;save();render()}
 function txRow(t){const fut=t.date>TD;return '<div class="row"><div class="t"><b>'+(t.rec?'🔁 ':'')+esc(t.label)+'</b><small>'+dl(t.date)+' · '+t.cat+' · '+(t.rec?'fixe, chaque mois':'occasionnelle')+'</small>'+(fut?'<div style="margin-top:6px"><span class="pill w">À venir</span></div>':'')+'</div><b class="'+(t.amt>0?'pos':'')+'" style="flex:none">'+(t.amt>0?'+':'')+eur(t.amt)+'</b>'+'<button class="x" aria-label="Modifier" onclick="openEdit(\''+(t.rec?'rec':'tx')+'\',\''+(t.rec?t.rid:t.id)+'\')">✎</button>'+(t.rec?'<span style="width:34px"></span>':'<button class="x" aria-label="Supprimer" onclick="delTx(\''+t.id+'\')">✕</button>')+'</div>'}
 function home(){
- let ev=[];for(let i=0;i<=30;i++){const d=P(TD);d.setDate(d.getDate()+i);const s=iso(d);on(s).forEach(it=>ev.push({s,it}));dueOn(s).forEach(dt=>ev.push({s,dt}));const h=holName(s);if(h)ev.push({s,h})}
+ let ev=[];for(let i=0;i<=30;i++){const d=P(TD);d.setDate(d.getDate()+i);const s=iso(d);on(s).forEach(it=>{if(!isDone(it,s))ev.push({s,it})});dueOn(s).forEach(dt=>ev.push({s,dt}));const h=holName(s);if(h)ev.push({s,h})}
  const ren=S.items.filter(i=>i.type=='renouv')
   .map(i=>({i,s:next(i)})).filter(o=>diff(o.s)<=60&&diff(o.s)>=0).sort((a,b)=>a.s<b.s?-1:1);
  const tx=monthAll(+TD.slice(0,4),+TD.slice(5,7)-1).filter(t=>t.date<=TD),inc=tx.filter(t=>t.amt>0).reduce((a,t)=>a+t.amt,0),out=tx.filter(t=>t.amt<0).reduce((a,t)=>a+t.amt,0);
@@ -83,7 +85,7 @@ function agenda(){if(wideAg())return bigAgenda();
   g+='<button class="'+(s==TD?'td ':'')+(s==S.sel?'sel ':'')+(h?'ho':'')+'" onclick="S.sel=\''+s+'\';render()">'+d+'<i>'+ev.slice(0,3).map(e=>'<s style="background:'+TY[e.type][1]+'"></s>').join('')+(dueOn(s).length?'<s style="background:#e0751f"></s>':'')+'</i></button>'}
  const ev=on(S.sel),h=holName(S.sel),dd=dueOn(S.sel);
  return '<h1>Agenda</h1><div class="nv"><button onclick="mv(\'c\',-1)" aria-label="Mois précédent">‹</button><b>'+MO[m]+' '+y+'</b><button onclick="mv(\'c\',1)" aria-label="Mois suivant">›</button></div><div class="card" style="padding:10px"><div class="cal">'+g+'</div></div>'
- +'<h2>'+P(S.sel).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+'</h2><div class="card">'+(h?'<div class="row"><span class="dot" style="background:#0e9f6e"></span><div class="t"><b>🇫🇷 '+esc(h)+'</b><small>Jour férié</small></div></div>':'')+ev.map(i=>itemRow(i)).join('')+dd.map(x=>debtRow(x)).join('')+(!h&&!ev.length&&!dd.length?'<div class="empty">Rien ce jour-là.</div>':'')+'</div>'}
+ +'<h2>'+P(S.sel).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+'</h2><div class="card">'+(h?'<div class="row"><span class="dot" style="background:#0e9f6e"></span><div class="t"><b>🇫🇷 '+esc(h)+'</b><small>Jour férié</small></div></div>':'')+ev.map(i=>itemRow(i,S.sel)).join('')+dd.map(x=>debtRow(x)).join('')+(!h&&!ev.length&&!dd.length?'<div class="empty">Rien ce jour-là.</div>':'')+'</div>'}
 function quotMonthly(){return S.items.filter(i=>i.type=='travail'&&+i.amt>0&&repMonths(i.rep)).reduce((a,i)=>a+(+i.amt)/repMonths(i.rep),0)}
 function quotList(){const l=S.items.filter(i=>i.type=='travail').sort((a,b)=>a.title.localeCompare(b.title));return l.length?'<h2>Quotidien · '+eur(quotMonthly())+' par mois</h2><div class="card">'+l.map(i=>itemRow(i,i.date?next(i):undefined)).join('')+'</div>':''}
 function aboList(){const l=S.items.filter(i=>i.type=='abo').sort((a,b)=>a.title.localeCompare(b.title));return l.length?'<h2>Abonnements · '+eur(subMonthly())+' par mois</h2><div class="card fc" style="margin-bottom:10px">'+hbars(l.map(i=>[esc(i.title),(+i.amt||0)/(repMonths(i.rep)||12),eur(+i.amt||0)+' · '+(RP[i.rep]||'').toLowerCase()]).sort((a,b)=>b[1]-a[1]))+'<small>Coût ramené au mois (un abonnement annuel compte pour 1/12).</small></div><div class="card">'+l.map(i=>itemRow(i)).join('')+'</div>':''}
@@ -354,7 +356,7 @@ const wideAg=()=>S.tab=='ag'&&innerWidth>=1000;
 // tout ce qui se passe un jour donné, avec un émoji
 function dayEvents(s){const y=+s.slice(0,4),m=+s.slice(5,7)-1,L=[],h=holName(s);
  if(h)L.push({e:'🇫🇷',t:h,k:'ho'});
- on(s).forEach(i=>{const a=isInst(i)?instAmt(i,s):+i.amt||0;L.push({e:TY[i.type][2],t:(i.time?i.time+' ':'')+i.title,a:a?-a:null,k:i.type,id:i.id})});
+ on(s).forEach(i=>{const a=isInst(i)?instAmt(i,s):+i.amt||0;L.push({e:TY[i.type][2],t:(i.time?i.time+' ':'')+i.title,a:a?-a:null,k:i.type,id:i.id,dn:isDone(i,s)})});
  S.rec.forEach(r=>{const o=recOcc(r,y,m);if(o&&o.date==s)L.push({e:r.sal?'💼':o.amt>0?'💶':'📋',t:r.label,a:o.amt,k:'rec',id:r.id})});
  S.tx.filter(t=>t.date==s).forEach(t=>L.push({e:t.amt>0?'💶':t.cat=='Épargne'?'🐷':'📌',t:t.label,a:t.amt,k:'tx',id:t.id}));
  dueOn(s).forEach(d=>L.push({e:'💸',t:(d.dir=='owe'?'À rembourser : ':'À recevoir : ')+d.who,a:d.dir=='owe'?-dLeft(d):dLeft(d),k:'debt',id:d.id}));
@@ -421,7 +423,7 @@ function rawF(){let L=[];try{L=JSON.parse(AgendaNative.raw()||'[]')}catch(e){}
  +(L.length?L.slice().reverse().map(x=>'<div class="row"><div class="t"><b>'+(x.bank=='ce'?'Caisse d’Épargne':'Revolut')+' · '+esc(x.res||'')+'</b><small>'+esc(x.at||'')+'<br>'+esc(x.title||'')+' — '+esc(x.text||'')+'</small></div></div>').join(''):'<div class="empty">Rien pour l’instant.</div>'))}
 
 // Résumé pour le widget de l'appli Android (fourni par l'appli via window.AgendaNative)
-function widgetData(){const ln=d=>dayEvents(d).map(e=>e.e+' '+e.t+(e.a?' · '+eur(e.a):'')),f=forecast(),B=balNow(),n=new Date();
+function widgetData(){const ln=d=>dayEvents(d).filter(e=>!e.dn).map(e=>e.e+' '+e.t+(e.a?' · '+eur(e.a):'')),f=forecast(),B=balNow(),n=new Date();
  return {date:dl(TD),today:ln(TD),tomorrow:ln(dayAdd(TD,1)),bal:B===null?null:eur(B),neg:B!==null&&B<0,
   sal:f?dl(f.nxt)+' ('+inj(f.D).toLowerCase()+')':null,eve:f&&f.B!==null?eur(f.before):null,
   low:f&&f.B!==null&&f.low<0?eur(f.low)+' le '+dl(f.lowDay):null,poche:(()=>{const p=pocheStats();return p.bud||p.sp?eur(p.left)+' sur '+eur(p.bud):null})(),warn:!!(f&&f.def>0.005),at:pad(n.getHours())+':'+pad(n.getMinutes())}}
@@ -456,7 +458,7 @@ function showForm(){
   +'<label>Note (facultatif)</label><input id="f_n" value="'+esc(F.n||'')+'">'+(F.type=='abo'?'':'<label>Me prévenir (jours avant)</label><input id="f_l" type="number" inputmode="numeric" value="'+esc(F.l||'')+'" placeholder="'+({renouv:30,credit:3,fois:3,rappel:0}[F.type]??2)+'">')}
  if(F.edit)h=h.replace(/(<h2[^>]*>)[^<]*/,'$1Modifier');$('#sh').innerHTML=h+'<button class="go" onclick="submitF()">'+(F.edit?'Enregistrer les modifications':'Enregistrer')+'</button>';if($('#prev'))credPrev();$('#m').classList.add('on')}
 function closeF(){$('#m').classList.remove('on')}
-function put(arr,o){const i=arr.findIndex(x=>x.id==o.id);if(i>=0)arr[i]=o;else arr.push(o)}
+function put(arr,o){const i=arr.findIndex(x=>x.id==o.id);if(i>=0){if(arr[i].dn&&!o.dn)o.dn=arr[i].dn;arr[i]=o}else arr.push(o)}
 function openEdit(k,id){if(k=='rec'){const r0=S.rec.find(x=>x.id==id);if(r0&&r0.sal)return salF()}$('#sh').innerHTML='';let o;const st=x=>x==null?'':String(x);
  if(k=='it'){o=S.items.find(x=>x.id==id);if(!o)return;F={k:'it',edit:id,type:o.type,t:o.title,d:o.date,rep:o.rep,a:st(o.amt),n:o.note||'',l:st(o.lead),h:o.time||''};
   if(o.type=='anniv'){F.dd=String(+o.date.slice(8));F.mm=o.date.slice(5,7);F._a=1}
@@ -479,7 +481,7 @@ function submitF(){
   put(S.items,it)}}
  save();closeF();render()}
 const catBar=c=>{const cap=+S.bud[c[0]]||0,over=cap&&c[1]>cap;return '<div style="margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:14px"><span>'+c[0]+'</span><b class="'+(over?'neg':'')+'">'+eur(c[1])+(cap?' / '+eur(cap):'')+'</b></div><div class="bar"><i style="width:'+Math.min(100,Math.round(c[1]/(cap||1)*100))+'%;'+(over?'background:var(--rd)':'')+'"></i></div></div>'};
-function alerts(){const l=S.items.filter(i=>i.type!='abo'&&i.date).map(i=>({i,s:next(i)})).filter(o=>{const n=diff(o.s),d=o.i.lead!==undefined&&o.i.lead!==''?+o.i.lead:({renouv:30,abo:7,credit:3,fois:3,rappel:0}[o.i.type]??2);return n>=0&&n<=d}).sort((a,b)=>a.s<b.s?-1:1);const dd=S.debts.filter(x=>x.due&&dLeft(x)>0&&diff(x.due)<=7);return l.length||dd.length?'<div class="card" style="border-color:var(--rd);margin-bottom:6px">'+l.map(o=>itemRow(o.i,o.s)).join('')+dd.map(x=>debtRow(x)).join('')+'</div>':''}
+function alerts(){const l=S.items.filter(i=>i.type!='abo'&&i.date).map(i=>({i,s:next(i)})).filter(o=>!isDone(o.i,o.s)).filter(o=>{const n=diff(o.s),d=o.i.lead!==undefined&&o.i.lead!==''?+o.i.lead:({renouv:30,abo:7,credit:3,fois:3,rappel:0}[o.i.type]??2);return n>=0&&n<=d}).sort((a,b)=>a.s<b.s?-1:1);const dd=S.debts.filter(x=>x.due&&dLeft(x)>0&&diff(x.due)<=7);return l.length||dd.length?'<div class="card" style="border-color:var(--rd);margin-bottom:6px">'+l.map(o=>itemRow(o.i,o.s)).join('')+dd.map(x=>debtRow(x)).join('')+'</div>':''}
 function sheet(h){$('#sh').innerHTML=h+'';$('#m').classList.add('on')}
 function cap(){sheet('<h2 style="margin-top:0">Plafonds mensuels (€)</h2>'+CATS.map((c,i)=>'<label>'+c+'</label><input id="cp'+i+'" type="number" inputmode="decimal" value="'+(S.bud[c]||'')+'" placeholder="Aucun">').join('')+'<button class="go" onclick="saveCap()">Enregistrer</button>')}
 function saveCap(){CATS.forEach((c,i)=>{const v=parseFloat($('#cp'+i).value);if(v>0)S.bud[c]=v;else delete S.bud[c]});save();closeF();render()}

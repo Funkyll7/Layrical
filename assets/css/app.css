@@ -130,3 +130,5 @@ button.go:disabled{opacity:.45;cursor:not-allowed}
 
 .pk-bar{height:8px;border-radius:4px;background:var(--ln);overflow:hidden;margin:8px 0 6px}.pk-bar i{display:block;height:100%;border-radius:4px}
 .pk-r{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mu);margin-top:10px}.pk-r input,.pk-r select{width:auto;flex:none;margin:0}.pk-r select{padding:4px 8px}.pk-r input{width:18px;height:18px}
+
+.row.done .t b{text-decoration:line-through;opacity:.6}.x.dn{color:var(--mu)}.x.dn.on{color:var(--c3,#1baf7a);font-weight:700}

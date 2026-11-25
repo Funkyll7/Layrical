@@ -13,6 +13,7 @@ const credEnd = (it) => addM(it.date, credN(it) - 1);
 const mdiff = (a, b) => (+b.slice(0, 4) - +a.slice(0, 4)) * 12 + (+b.slice(5, 7)) - (+a.slice(5, 7));
 // montant réellement prélevé ce jour-là (un prêt étudiant en différé ne prélève que les intérêts et/ou l'assurance)
 const payOn = (it, s) => { if (!it.stu) return +it.amt; const j = mdiff(it.date, s), d = +it.dfm || 0, ins = +it.ins || 0; return j < d ? Math.round(((it.def == 'p' ? +it.dpay || 0 : 0) + ins) * 100) / 100 : +it.amt; };
+const done = (it, s) => !!(it.dn && it.dn.includes(s));
 const EMO = { rdv: '🗓️', rappel: '🔔', anniv: '🎂', travail: '🛒', renouv: '🪪', credit: '🏦', fois: '🧾' };
 const LEAD = { renouv: 30, credit: 3, fois: 3, rappel: 0 };
 const eur = (v) => (+v).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
@@ -35,7 +36,7 @@ const label = (it, s) => { const v = isInst(it) ? payOn(it, s) : +it.amt, amt = 
 const owed = (d) => (+d.amt) - (d.pays || []).reduce((a, p) => a + (+p.a), 0);
 // un rendez-vous ou rappel avant 9 h aujourd'hui avance le résumé du matin à 6 h 30
 export const EARLY_BEFORE = '09:00';
-export function hasEarly(S, TD) { return (S.items || []).some((i) => (i.type == 'rdv' || i.type == 'rappel') && i.time && i.time < EARLY_BEFORE && occ(i, TD)); }
+export function hasEarly(S, TD) { return (S.items || []).some((i) => (i.type == 'rdv' || i.type == 'rappel') && i.time && i.time < EARLY_BEFORE && occ(i, TD) && !done(i, TD)); }
 
 // now = { TD: 'AAAA-MM-JJ', H: heure 0-23 à Paris, early: true pour le passage de 6 h 30 }
 export function reminders(S, now) {
@@ -47,7 +48,7 @@ export function reminders(S, now) {
   if (early ? shift : H == hour && !shift) {
     const today = [], soon = [];
     for (const it of items) {
-      const s = nextOcc(it, TD); if (!s) continue;
+      const s = nextOcc(it, TD); if (!s || done(it, s)) continue;
       const n = days(TD, s), L = it.lead !== undefined && it.lead !== '' ? +it.lead : (LEAD[it.type] ?? 2);
       // la veille est couverte par le rappel du soir
       if (n == 0) today.push(label(it, s)); else if (L > 1 && n == L) soon.push('Dans ' + n + ' j : ' + label(it, s));
@@ -64,13 +65,13 @@ export function reminders(S, now) {
   if (early) return out;
   // 2) la veille au soir : tout ce qui a lieu demain
   if (H == eve) {
-    const T = tomorrow(TD), list = items.filter((it) => occ(it, T)).sort((a, b) => (a.time || '99').localeCompare(b.time || '99')).map((it) => label(it, T));
+    const T = tomorrow(TD), list = items.filter((it) => occ(it, T) && !done(it, T)).sort((a, b) => (a.time || '99').localeCompare(b.time || '99')).map((it) => label(it, T));
     for (const d of S.debts || []) if (d.dir == 'owe' && d.due == T && owed(d) > 0.005) list.push('💸 Rembourser ' + d.who + ' (' + eur(owed(d)) + ')');
     if (list.length) out.push({ title: '🌙 Demain : ' + list.length + ' chose' + (list.length > 1 ? 's' : '') + ' de prévue' + (list.length > 1 ? 's' : ''), body: list.slice(0, 8).join('\n') + (list.length > 8 ? '\n… et ' + (list.length - 8) + ' autre(s)' : ''), tag: 'veille-' + T });
   }
   // 3) rendez-vous et rappels avec une heure : environ 1 h avant
   for (const it of items) {
-    if (!it.time || !occ(it, TD)) continue;
+    if (!it.time || !occ(it, TD) || done(it, TD)) continue;
     const h = +it.time.slice(0, 2);
     if (h == (H + 1) % 24 && H + 1 < 24) out.push({ title: '⏰ Dans 1 h : ' + it.title, body: EMO[it.type] + ' ' + it.title + ' à ' + it.time + (it.note ? '\n' + it.note : ''), tag: 'h-' + it.id + '-' + TD });
   }
