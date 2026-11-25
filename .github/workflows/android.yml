@@ -38,7 +38,7 @@ jobs:
         run: gradle -p android assembleRelease --no-daemon
         env:
           VERSION_CODE: ${{ github.run_number }}
-      - name: Publier (lien fixe : releases/latest/download/agenda.apk)
+      - name: Publier l'APK (lien fixe releases/latest/download/agenda.apk)
         if: env.HAS_KEY == 'true'
         run: |
           cp android/app/build/outputs/apk/release/app-release.apk agenda.apk
