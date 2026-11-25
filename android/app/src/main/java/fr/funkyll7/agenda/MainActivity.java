@@ -30,6 +30,8 @@ public class MainActivity extends Activity {
         super.onCreate(b);
         w = new WebView(this);
         setContentView(w);
+        boolean night = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        w.setBackgroundColor(night ? 0xFF101A1E : 0xFFF2F5F7); // pas de flash blanc au démarrage
         Web.setup(w, this, null);
         w.setWebChromeClient(new WebChromeClient()); // fenêtres alert / confirm du site
         w.setWebViewClient(new WebViewClient() {

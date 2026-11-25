@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mode sombre du téléphone : thème sombre, le site reçoit prefers-color-scheme: dark -->
+    <style name="Theme.Agenda" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#0E6B6B</item>
+        <item name="android:navigationBarColor">#101A1E</item>
+        <item name="android:windowBackground">@color/bg</item>
+    </style>
+    <color name="bg">#101A1E</color>
+</resources>
