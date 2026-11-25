@@ -81,3 +81,24 @@ export function parisNow(date = new Date()) {
   const p = Object.fromEntries(new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false }).formatToParts(date).map((x) => [x.type, x.value]));
   return { TD: p.year + '-' + p.month + '-' + p.day, H: (+p.hour) % 24 };
 }
+
+// Programme des notifications locales (appli Android) : chaque notification avec son heure exacte.
+// Résumé : à l'heure choisie pile (ou 6 h 30) ; veille : à l'heure du soir pile ; rappel « 1 h avant » : 60 min avant l'heure du rendez-vous.
+export function plan(S, TD, nDays = 8) {
+  const out = [], seen = new Set();
+  for (let k = 0; k < nDays; k++) {
+    const d = P(TD); d.setUTCDate(d.getUTCDate() + k); const day = iso(d);
+    const add = (m, at) => { if (!seen.has(m.tag)) { seen.add(m.tag); out.push({ ...m, at }); } };
+    for (const m of reminders(S, { TD: day, H: 6, early: true })) add(m, day + 'T06:30');
+    for (let H = 0; H < 24; H++) for (const m of reminders(S, { TD: day, H })) {
+      if (m.tag.startsWith('h-')) {
+        const it = (S.items || []).find((i) => m.tag == 'h-' + i.id + '-' + day);
+        if (!it) continue;
+        const mins = +it.time.slice(0, 2) * 60 + +it.time.slice(3, 5) - 60;
+        if (mins < 0) continue;
+        add(m, day + 'T' + pad(Math.floor(mins / 60)) + ':' + pad(mins % 60));
+      } else add(m, day + 'T' + pad(H) + ':00');
+    }
+  }
+  return out.sort((a, b) => a.at.localeCompare(b.at));
+}

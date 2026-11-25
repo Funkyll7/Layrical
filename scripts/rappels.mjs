@@ -21,6 +21,7 @@ if (!S.pushKey?.pub || !(S.subs || []).length) { console.log('Aucun appareil ins
 
 // le passage de 6 h 30 (cron dédié) n'envoie que le résumé avancé
 const early = !!process.env.SCHEDULE && process.env.SCHEDULE.startsWith('30 ');
+if (S.notif?.native && TEST !== 'true') { console.log('Notifications gérées par l’appli Android : rien à envoyer d’ici.'); process.exit(0); }
 const now = { ...parisNow(), early };
 if (early && now.H != 6) { console.log('Passage de 6 h 30 : pas la bonne heure (Paris ' + now.H + ' h).'); process.exit(0); }
 const msgs = TEST === 'true' ? [{ title: '🔔 Test depuis GitHub', body: 'Les rappels arrivent bien sur cet appareil.', tag: 'test' }] : reminders(S, now);

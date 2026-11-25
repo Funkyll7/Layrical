@@ -1,6 +1,9 @@
 package fr.funkyll7.agenda;
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -30,6 +33,10 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
+        Notif.channel(this);
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
+        Notif.run(this);
         if (b != null) w.restoreState(b);
         else w.loadUrl(Web.URL);
     }

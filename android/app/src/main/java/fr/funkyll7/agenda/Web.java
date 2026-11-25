@@ -2,6 +2,8 @@ package fr.funkyll7.agenda;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
+import android.provider.Settings;
 import android.os.Handler;
 import android.os.Looper;
 import android.webkit.JavascriptInterface;
@@ -42,6 +44,29 @@ final class Web {
                     .putLong("t", System.currentTimeMillis())
                     .apply();
             new Handler(Looper.getMainLooper()).post(() -> AgendaWidget.refreshAll(c));
+        }
+
+        /** Liste des notifications à programmer (JSON : at, title, body, tag). */
+        @JavascriptInterface
+        public void schedule(String json) {
+            if (json == null || json.length() > 200000) return;
+            new Handler(Looper.getMainLooper()).post(() -> Notif.save(c, json));
+        }
+
+        @JavascriptInterface
+        public boolean canNotify() { return Notif.enabled(c); }
+
+        @JavascriptInterface
+        public void test() {
+            new Handler(Looper.getMainLooper()).post(() -> Notif.show(c, "🔔 Test", "Les rappels arrivent bien sur ce téléphone.", "test"));
+        }
+
+        @JavascriptInterface
+        public void openSettings() {
+            Intent i = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, c.getPackageName())
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            c.startActivity(i);
         }
 
         /** Fin de la mise à jour en arrière-plan. */
