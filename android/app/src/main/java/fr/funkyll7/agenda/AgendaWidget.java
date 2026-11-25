@@ -123,6 +123,8 @@ public class AgendaWidget extends AppWidgetProvider {
             String bal = str(o, "bal"), sal = str(o, "sal"), eve = str(o, "eve"), low = str(o, "low");
             b.append("💰 Solde : ").append(bal != null ? bal : "à définir dans l’appli");
             if (sal != null) b.append("\n💼 Salaire : ").append(sal);
+            String pc = str(o, "poche");
+            if (pc != null) b.append("\n🎉 Argent de poche : reste ").append(pc);
             if (low != null) b.append("\n📉 Point bas : ").append(low);
             else if (eve != null) b.append("\n🐷 La veille du salaire : ").append(eve);
             if (o.optBoolean("warn")) b.append("\n⚠️ Sous ta limite de découvert : ouvre l’appli");

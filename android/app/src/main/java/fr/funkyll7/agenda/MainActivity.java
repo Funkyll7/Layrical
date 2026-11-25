@@ -15,6 +15,15 @@ import android.webkit.WebViewClient;
 /** L'appli : ton agenda (le site) en plein écran. */
 public class MainActivity extends Activity {
     private WebView w;
+    private static MainActivity live; // appli au premier plan
+
+    /** Un paiement vient d'être lu : si l'appli est ouverte, elle l'ajoute tout de suite. */
+    static boolean importNow() {
+        MainActivity a = live;
+        if (a == null || a.w == null) return false;
+        a.w.evaluateJavascript("window.nimport&&nimport()", null);
+        return true;
+    }
 
     @Override
     protected void onCreate(Bundle b) {
@@ -37,6 +46,7 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
         Notif.run(this);
+        if (Updater.ACTION.equals(getIntent().getAction())) Updater.check(this, true);
         if (b != null) w.restoreState(b);
         else w.loadUrl(Web.URL);
     }
@@ -52,10 +62,20 @@ public class MainActivity extends Activity {
         super.onResume();
         // le site se resynchronise tout seul quand il redevient visible et renvoie le résumé au widget
         w.onResume();
+        live = this;
+        w.evaluateJavascript("window.nimport&&nimport()", null);
+        Updater.check(this, false);
+    }
+
+    @Override
+    protected void onNewIntent(Intent i) {
+        super.onNewIntent(i);
+        if (Updater.ACTION.equals(i.getAction())) Updater.check(this, true);
     }
 
     @Override
     protected void onPause() {
+        if (live == this) live = null;
         w.onPause();
         super.onPause();
     }

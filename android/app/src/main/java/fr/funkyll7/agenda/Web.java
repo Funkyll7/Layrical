@@ -69,6 +69,27 @@ final class Web {
             c.startActivity(i);
         }
 
+        /** Paiements lus dans les notifications, en attente d'être ajoutés à l'agenda (JSON). */
+        @JavascriptInterface
+        public String pending() { return BankListener.pending(c); }
+
+        @JavascriptInterface
+        public void ack(String ids) { BankListener.ack(c, ids); }
+
+        @JavascriptInterface
+        public String raw() { return BankListener.raw(c); }
+
+        @JavascriptInterface
+        public boolean canListen() { return BankListener.enabled(c); }
+
+        @JavascriptInterface
+        public void openListenerSettings() {
+            c.startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        }
+
+        @JavascriptInterface
+        public String version() { return "1.0." + Updater.current(c); }
+
         /** Fin de la mise à jour en arrière-plan. */
         @JavascriptInterface
         public void done() {

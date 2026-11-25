@@ -1,6 +1,6 @@
 /* app.js — état, vues, formulaires. La synchro vit dans sync.js. */
 const TY={rdv:['Rendez-vous','#2f6fdb','🗓️'],rappel:['Rappel','#0e7490','🔔'],anniv:['Anniversaire','#d6479a','🎂'],travail:['Quotidien','#b7791f','🛒'],renouv:['Renouvellement','#c8372d','🪪'],abo:['Abonnement','#7a4fd1','🔁'],credit:['Crédit','#0f766e','🏦'],fois:['En plusieurs fois','#b45309','🧾']};
-const CATS=['Logement','Courses','Transport','Loisirs','Santé','Factures','Dettes','Autre'];
+const CATS=['Logement','Courses','Transport','Loisirs','Santé','Factures','Dettes','Imprévu','Autre'];
 const RP={none:'Une seule fois',weekly:'Chaque semaine',monthly:'Chaque mois',m2:'Tous les 2 mois',m3:'Tous les 3 mois',m6:'Tous les 6 mois',yearly:'Chaque année'};
 const repMonths=r=>r=='weekly'?12/52:r=='monthly'?1:r=='yearly'?12:/^m\d+$/.test(r||'')?+r.slice(1):0;
 const MO=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
@@ -14,8 +14,8 @@ const dl=s=>P(s).toLocaleDateString('fr-FR',Object.assign({weekday:'short',day:'
 const diff=s=>Math.round((P(s)-P(TD))/864e5);
 const inj=n=>n==0?"Aujourd’hui":n==1?'Demain':'Dans '+n+' j';
 let S={items:[],tx:[],debts:[],rec:[],sav:[],inv:[],subs:[],pushKey:null,notif:{hour:8},bal:null,plan:{inc:'',p:{poche:50,invest:25,pepin:25}},bud:{},ts:0,tab:'home',sel:TD,cy:+TD.slice(0,4),cm:+TD.slice(5,7)-1,by:+TD.slice(0,4),bm:+TD.slice(5,7)-1};
-let SYNC='local';const apply=o=>{S.items=o.items||[];S.tx=o.tx||[];S.debts=o.debts||[];S.rec=o.rec||[];S.bal=o.bal||null;S.notes=o.notes||'';S.plan=o.plan||{inc:'',p:{poche:50,invest:25,pepin:25}};S.sav=o.sav||[];S.inv=o.inv||[];S.subs=o.subs||[];S.pushKey=o.pushKey||null;S.notif=o.notif||{hour:8};S.bud=o.bud||{};S.ts=o.ts||0};try{const r=localStorage.getItem('agenda-perso');if(r)apply(JSON.parse(r))}catch(e){}
-const snap=()=>({items:S.items,tx:S.tx,debts:S.debts,rec:S.rec,bal:S.bal,notes:S.notes||'',plan:S.plan,sav:S.sav,inv:S.inv,subs:S.subs,pushKey:S.pushKey,notif:S.notif,bud:S.bud,ts:S.ts});
+let SYNC='local';const apply=o=>{S.items=o.items||[];S.tx=o.tx||[];S.debts=o.debts||[];S.rec=o.rec||[];S.bal=o.bal||null;S.notes=o.notes||'';S.plan=o.plan||{inc:'',p:{poche:50,invest:25,pepin:25}};S.sav=o.sav||[];S.inv=o.inv||[];S.subs=o.subs||[];S.pushKey=o.pushKey||null;S.notif=o.notif||{hour:8};S.bud=o.bud||{};S.poche=o.poche||{tx:[],round:{on:true,x:1}};S.card=o.card||[];S.ts=o.ts||0};try{const r=localStorage.getItem('agenda-perso');if(r)apply(JSON.parse(r))}catch(e){}
+const snap=()=>({items:S.items,tx:S.tx,debts:S.debts,rec:S.rec,bal:S.bal,notes:S.notes||'',plan:S.plan,sav:S.sav,inv:S.inv,subs:S.subs,pushKey:S.pushKey,notif:S.notif,bud:S.bud,poche:S.poche,card:S.card,ts:S.ts});
 let ERR='';const badge=()=>{const e=$('#sy');e.textContent=SYNC=='ok'?'☁️ Synchronisé':SYNC=='sav'?'☁️ Envoi…':SYNC=='err'?'⚠️ '+(ERR||'Hors ligne'):'📱 Local · touche pour régler la synchro';e.onclick=()=>gs();e.style.cursor='pointer'};
 const lsave=()=>{try{localStorage.setItem('agenda-perso',JSON.stringify(snap()))}catch(e){}};
 const save=()=>{S.ts=Date.now();lsave();if(GH.token&&GH.repo){SYNC='sav';badge();clearTimeout(tm);tm=setTimeout(push,1200)}};
@@ -94,7 +94,7 @@ function budget(){
  CATS.forEach(c=>{if(S.bud[c]&&!(c in bc))bc[c]=0});const cats=Object.entries(bc).sort((a,b)=>b[1]-a[1]);
  return '<h1>Budget</h1><div class="nv"><button onclick="mv(\'b\',-1)" aria-label="Mois précédent">‹</button><b>'+MO[m]+' '+y+'</b><button onclick="mv(\'b\',1)" aria-label="Mois suivant">›</button></div>'
  +'<div class="sum">'+balCard()+'<div><small>Revenus du mois</small><b>'+eur(inc)+'</b></div><div><small>Dépenses du mois</small><b>'+eur(Math.abs(out))+'</b></div></div>'
- +'<p style="color:var(--mu);font-size:14px;margin:10px 2px 0">Bilan de '+MO[m]+' : <b class="'+(inc-out>=0?'pos':'neg')+'">'+(inc-out>=0?'+':'')+eur(inc-out)+'</b></p>'+fcCard()+budgetCharts()
+ +'<p style="color:var(--mu);font-size:14px;margin:10px 2px 0">Bilan de '+MO[m]+' : <b class="'+(inc-out>=0?'pos':'neg')+'">'+(inc-out>=0?'+':'')+eur(inc-out)+'</b></p>'+fcCard()+pocheCard()+cardCard()+budgetCharts()
  +'<p style="color:var(--mu);font-size:14px;margin:10px 2px">Tes abonnements actifs coûtent environ <b style="color:var(--ink)">'+eur(subMonthly())+'</b> par mois.'+(credMonthly()?' Crédits et paiements en plusieurs fois : <b style="color:var(--ink)">'+eur(credMonthly())+'</b> par mois.':'')+'</p>'
  +(cats.length?'<h2>Dépenses par catégorie</h2><div class="card" style="padding:10px 14px">'+cats.map(catBar).join('')+'</div>':'')
  +'<button class="go" style="background:var(--acs);color:var(--ac);margin-top:12px" onclick="cap()">Fixer des plafonds par catégorie</button>'+recList()+quotList()+aboList()+'<h2>Mouvements de '+MO[m]+'</h2><div class="card">'+(tx.length?tx.map(txRow).join(''):'<div class="empty">Aucun mouvement. Appuie sur + pour en ajouter.</div>')+'</div>'}
@@ -375,11 +375,55 @@ function bigAgenda(){const y=S.cy,m=S.cm,first=new Date(y,m,1,12),off=(first.get
  +L.filter(e=>e.k=='rec'||e.k=='tx').map(e=>'<div class="row"><div class="t"><b>'+e.e+' '+esc(e.t)+'</b><small>'+(e.k=='rec'?'Revenu ou dépense fixe':'Mouvement')+'</small></div><b class="'+(e.a>0?'pos':'')+'" style="flex:none">'+(e.a>0?'+':'')+eur(e.a)+'</b></div>').join('')
  +(!L.length?'<div class="empty">Rien ce jour-là. Appuie sur + pour ajouter quelque chose.</div>':'')+'</div>'}
 let RZ=null;addEventListener('resize',()=>{clearTimeout(RZ);RZ=setTimeout(()=>{if(S.tab=='ag')render()},150)});
+// ===== Argent de poche (dépenses lues dans les notifications Revolut) et achats carte hors argent de poche =====
+const pk=()=>(S.poche=S.poche||{tx:[],round:{on:true,x:1}});
+function pocheCycle(){const r=salRec();if(r){const {last,nxt}=payAround(r);return {from:last||TD.slice(0,8)+'01',to:nxt}}return {from:TD.slice(0,8)+'01',to:null}}
+const inCyc=(d,c)=>d>=c.from&&(!c.to||d<c.to);
+function roundOf(a){const R=pk().round;if(!R||!R.on)return 0;const c=Math.ceil(a-1e-9)-a;return c<0.005?0:Math.round(c*(+R.x||1)*100)/100}
+const tsort=(a,b)=>(b.date+(b.time||''))>(a.date+(a.time||''))?1:-1;
+function pocheStats(){const P=pk(),c=pocheCycle(),L=P.tx.filter(t=>inCyc(t.date,c)).sort(tsort),sp=L.reduce((a,t)=>a+(+t.amt||0),0),rd=L.reduce((a,t)=>a+(+t.round||0),0),bud=Math.max(0,planCalc().amt('poche')||0),last=P.tx.filter(t=>t.bal!=null).sort(tsort)[0];
+ return {c,L,sp,rd,bud,left:Math.round((bud-sp-rd)*100)/100,rev:last?last.bal:null}}
+function pkRow(t){return '<div class="row"><div class="t"><b>'+esc(t.label)+'</b><small>'+dl(t.date)+(t.time?' à '+t.time:'')+(t.round?' · +'+eur(t.round)+' d’arrondi investi':'')+(t.auto?' · lu sur Revolut':'')+'</small></div><b class="neg" style="white-space:nowrap">−'+eur(+t.amt)+'</b><button class="x" aria-label="Modifier" onclick="pkF(\''+t.id+'\')">✎</button><button class="x" aria-label="Supprimer" onclick="pkDel(\''+t.id+'\')">✕</button></div>'}
+function listenHTML(){if(!(window.AgendaNative&&AgendaNative.canListen))return '<small style="display:block;margin:6px 0">Dans l’appli Android, tes paiements Revolut s’ajoutent ici tout seuls.</small>';
+ return AgendaNative.canListen()?'<small style="display:block;margin:6px 0"><span class="pos">✓ Lecture automatique des notifications Revolut et Caisse d’Épargne</span> · <a href="#" onclick="rawF();return false">voir ce qui a été lu</a></small>'
+  :'<p class="neg" style="margin:8px 0 4px"><b>Lecture automatique désactivée.</b> Autorise l’appli à lire les notifications pour noter tes paiements tout seul.</p><button class="go" onclick="AgendaNative.openListenerSettings()">Autoriser la lecture des notifications</button>'}
+function pocheCard(){const s=pocheStats(),P=pk(),u=s.sp+s.rd,pct=s.bud?Math.min(100,u/s.bud*100):(u?100:0);
+ return '<h2>🎉 Argent de poche</h2><div class="card pk">'
+ +'<div class="pl-l"><b>Il te reste <span class="'+(s.left<0?'neg':'pos')+'">'+eur(s.left)+'</span> sur '+eur(s.bud)+'</b><button class="pill" style="border:0;cursor:pointer" onclick="pkF()">+ Dépense</button></div>'
+ +'<div class="pk-bar" title="'+Math.round(pct)+' % utilisé"><i style="width:'+pct.toFixed(1)+'%;background:'+(s.left<0?'var(--crit)':'var(--c1)')+'"></i></div>'
+ +'<small style="display:block">Du '+dl(s.c.from)+(s.c.to?' au salaire du '+dl(s.c.to):'')+' : <b>'+eur(s.sp)+'</b> dépensés'+(s.rd>0.005?' + <b>'+eur(s.rd)+'</b> d’arrondis investis':'')+'.'+(s.rev!=null?' Solde Revolut d’après la dernière notification : <b>'+eur(s.rev)+'</b>.':'')+'</small>'
+ +listenHTML()+(s.L.length?s.L.map(pkRow).join(''):'<div class="empty">Aucune dépense d’argent de poche depuis le salaire.</div>')
+ +'<label class="pk-r"><input type="checkbox" '+(P.round.on?'checked':'')+' onchange="pk().round.on=this.checked;save();render()"> Arrondi à l’euro supérieur investi par Revolut</label>'
+ +(P.round.on?'<label class="pk-r">Multiplicateur de l’arrondi <select onchange="pk().round.x=+this.value;save();render()">'+[1,2,5,10].map(x=>'<option value="'+x+'"'+((+P.round.x||1)==x?' selected':'')+'>×'+x+'</option>').join('')+'</select></label>':'')
+ +'</div>'}
+function pkF(id){const t=id?pk().tx.find(x=>x.id==id):null;sheet('<h2 style="margin-top:0">'+(t?'Modifier la dépense':'🎉 Dépense d’argent de poche')+'</h2><label>Quoi</label><input id="k_l" value="'+esc(t?t.label:'')+'" placeholder="Ex. ciné, resto"><label>Montant (€)</label><input id="k_a" type="number" inputmode="decimal" step="0.01" value="'+(t?t.amt:'')+'"><label>Date</label><input id="k_d" type="date" value="'+(t?t.date:TD)+'"><button class="go" onclick="pkSave(\''+(id||'')+'\')">Enregistrer</button>')}
+function pkSave(id){const a=parseFloat($('#k_a').value),l=$('#k_l').value.trim()||'Dépense',d=$('#k_d').value||TD;if(!(a>0)){alert('Indique le montant dépensé.');return}const a2=Math.round(a*100)/100;
+ const t=id?pk().tx.find(x=>x.id==id):null;if(t){if(t.amt!=a2)t.round=roundOf(a2);Object.assign(t,{label:l,amt:a2,date:d})}else pk().tx.push({id:uid(),label:l,amt:a2,date:d,round:roundOf(a2)});save();closeF();render()}
+
+function pkDel(id){const t=pk().tx.find(x=>x.id==id);if(!t||!confirm('Supprimer « '+t.label+' » ('+eur(+t.amt)+') ?'))return;pk().tx=pk().tx.filter(x=>x.id!=id);save();render()}
+// Achats carte Caisse d'Épargne : déduits du budget principal (catégorie Imprévu) sauf si c'était prévu (courses, loyer…)
+function cardCard(){const c=pocheCycle(),L=(S.card||[]).filter(x=>inCyc(x.date,c)).sort(tsort);if(!L.length&&!(window.AgendaNative&&AgendaNative.canListen))return '';
+ const imp=L.filter(x=>x.st!='prevu').reduce((a,x)=>a+(+x.amt),0);
+ return '<h2>💳 Achats carte hors argent de poche</h2><div class="card"><small style="display:block;margin-bottom:6px">Paiements Caisse d’Épargne depuis le '+dl(c.from)+'. Les imprévus sont déduits de ton budget principal : c’est de l’argent qui devait aller à l’épargne ou à l’investissement. Total imprévu : <b class="neg">'+eur(imp)+'</b>.</small>'
+ +(L.length?L.map(x=>'<div class="row"><div class="t"><b>'+esc(x.label)+'</b><small>'+dl(x.date)+(x.time?' à '+x.time:'')+' · '+(x.st=='prevu'?'prévu dans le budget (non déduit)':'imprévu, déduit du budget')+'</small></div><b class="neg" style="white-space:nowrap">−'+eur(+x.amt)+'</b><button class="pill" style="border:0;cursor:pointer;white-space:nowrap" onclick="cardToggle(\''+x.id+'\')">'+(x.st=='prevu'?'Imprévu':'C’était prévu')+'</button><button class="x" aria-label="Supprimer" onclick="cardDel(\''+x.id+'\')">✕</button></div>').join(''):'<div class="empty">Aucun paiement Caisse d’Épargne lu depuis le salaire.</div>')+'</div>'}
+const cardTx=c=>({id:'cb'+c.id,date:c.date,label:'💳 '+c.label,amt:-(+c.amt),cat:'Imprévu',ct:c.ct||Date.now()});
+function cardToggle(id){const c=(S.card||[]).find(x=>x.id==id);if(!c)return;S.tx=S.tx.filter(t=>t.id!='cb'+c.id);if(c.st=='prevu'){c.st='imprevu';S.tx.push(cardTx(c))}else c.st='prevu';save();render()}
+function cardDel(id){const c=(S.card||[]).find(x=>x.id==id);if(!c||!confirm('Supprimer ce paiement ('+eur(+c.amt)+') ? Il ne sera plus déduit.'))return;S.card=S.card.filter(x=>x.id!=id);S.tx=S.tx.filter(t=>t.id!='cb'+id);save();render()}
+// Paiements lus par l'appli Android dans les notifications (file d'attente côté téléphone)
+function nimport(){try{if(!window.AgendaNative||!AgendaNative.pending)return 0;const L=JSON.parse(AgendaNative.pending()||'[]');if(!L.length)return 0;let n=0;S.card=S.card||[];
+ for(const p of L){const amt=Math.round(+p.amt*100)/100;if(!(amt>0))continue;
+  if(p.bank=='revolut'){if(pk().tx.some(x=>x.id==p.id))continue;pk().tx.push({id:p.id,date:p.date,time:p.time,amt,round:roundOf(amt),label:p.label||'Paiement Revolut',bal:p.bal==null?null:+p.bal,auto:1});n++}
+  else if(p.bank=='ce'){if(S.card.some(x=>x.id==p.id))continue;const c={id:p.id,date:p.date,time:p.time,amt,label:p.label||'Paiement carte',st:'imprevu',ct:p.ts||Date.now()};S.card.push(c);S.tx.push(cardTx(c));n++}}
+ if(n)save();AgendaNative.ack(JSON.stringify(L.map(p=>p.id)));if(n)render();return n}catch(e){console.warn('nimport',e);return 0}}
+function rawF(){let L=[];try{L=JSON.parse(AgendaNative.raw()||'[]')}catch(e){}
+ sheet('<h2 style="margin-top:0">Notifications bancaires lues</h2><small style="color:var(--mu);display:block">Les 15 dernières notifications Revolut et Caisse d’Épargne vues par l’appli (gardées seulement sur ce téléphone). Si un paiement est mal lu, envoie une capture de cet écran.</small>'
+ +(L.length?L.slice().reverse().map(x=>'<div class="row"><div class="t"><b>'+(x.bank=='ce'?'Caisse d’Épargne':'Revolut')+' · '+esc(x.res||'')+'</b><small>'+esc(x.at||'')+'<br>'+esc(x.title||'')+' — '+esc(x.text||'')+'</small></div></div>').join(''):'<div class="empty">Rien pour l’instant.</div>'))}
+
 // Résumé pour le widget de l'appli Android (fourni par l'appli via window.AgendaNative)
 function widgetData(){const ln=d=>dayEvents(d).map(e=>e.e+' '+e.t+(e.a?' · '+eur(e.a):'')),f=forecast(),B=balNow(),n=new Date();
  return {date:dl(TD),today:ln(TD),tomorrow:ln(dayAdd(TD,1)),bal:B===null?null:eur(B),neg:B!==null&&B<0,
   sal:f?dl(f.nxt)+' ('+inj(f.D).toLowerCase()+')':null,eve:f&&f.B!==null?eur(f.before):null,
-  low:f&&f.B!==null&&f.low<0?eur(f.low)+' le '+dl(f.lowDay):null,warn:!!(f&&f.def>0.005),at:pad(n.getHours())+':'+pad(n.getMinutes())}}
+  low:f&&f.B!==null&&f.low<0?eur(f.low)+' le '+dl(f.lowDay):null,poche:(()=>{const p=pocheStats();return p.bud||p.sp?eur(p.left)+' sur '+eur(p.bud):null})(),warn:!!(f&&f.def>0.005),at:pad(n.getHours())+':'+pad(n.getMinutes())}}
 function wpush(){try{if(window.AgendaNative)AgendaNative.update(JSON.stringify(widgetData()))}catch(e){}clearTimeout(wpush.t);wpush.t=setTimeout(nsched,400)}
 // Notifications programmées dans le téléphone par l'appli Android (8 jours d'avance, recalculées à chaque ouverture/synchro)
 async function nsched(){try{if(!window.AgendaNative||!AgendaNative.schedule)return;const m=await import(new URL('scripts/rappels-calc.mjs',document.baseURI).href);const L=m.plan(snap(),TD,8).map(x=>({at:x.at,title:x.title,body:x.body,tag:x.tag}));AgendaNative.schedule(JSON.stringify(L));return L.length}catch(e){console.warn("nsched",e)}}

@@ -69,7 +69,7 @@
         android:textColor="#FFFFFF"
         android:textSize="13sp"
         android:lineSpacingExtra="2dp"
-        android:maxLines="4"
+        android:maxLines="6"
         android:ellipsize="end" />
 
     <TextView

@@ -127,3 +127,6 @@ svg .fu{opacity:.45}
 :root[data-theme="dark"] .ev-anniv{background:#4a1d31;color:#ffd0e3}:root[data-theme="dark"] .ev-ho{background:#173d2c;color:#bdf0d6}:root[data-theme="dark"] .ev-credit,:root[data-theme="dark"] .ev-fois,:root[data-theme="dark"] .ev-debt{background:#4a2a15;color:#ffd9bf}:root[data-theme="dark"] .ev-rec{background:#16345a;color:#cfe2ff}
 .nf-st{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size:14px;line-height:1.45}.nf-st>b{flex:none;width:24px;height:24px;border-radius:50%;background:var(--acs);color:var(--ac);display:flex;align-items:center;justify-content:center;font-size:13px}.nf-ok>b{background:var(--ac);color:#fff}.nf-st small{color:var(--mu);font-size:12.5px}.nf-st a{color:var(--ac)}.nf-key{margin-top:8px}.nf-key textarea{font:12px ui-monospace,monospace;margin:4px 0;word-break:break-all}
 button.go:disabled{opacity:.45;cursor:not-allowed}
+
+.pk-bar{height:8px;border-radius:4px;background:var(--ln);overflow:hidden;margin:8px 0 6px}.pk-bar i{display:block;height:100%;border-radius:4px}
+.pk-r{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mu);margin-top:10px}.pk-r input,.pk-r select{width:auto;flex:none;margin:0}.pk-r select{padding:4px 8px}.pk-r input{width:18px;height:18px}
