@@ -10,16 +10,19 @@ import java.util.regex.Pattern;
 /** Lecture d'une notification bancaire : montant payé, solde éventuel, commerçant. Java pur (testable hors Android). */
 final class BankParse {
     static final class R {
-        boolean ok; double amt; Double bal; String label; String why;
+        boolean ok, in; double amt; Double bal; String label; String why;
     }
 
     private static final String NUM = "(\\d{1,3}(?:[ \\u00a0\\u202f.]\\d{3})+(?:,\\d{1,2})?|\\d{1,3}(?:[ \\u00a0\\u202f,]\\d{3})+(?:\\.\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?)";
     private static final Pattern MONEY = Pattern.compile(
             "([-−+]?)\\s?(?:€|EUR)\\s?([-−+]?)" + NUM + "|([-−+]?)" + NUM + "\\s?(?:€|EUR|euros?)", Pattern.CASE_INSENSITIVE);
     private static final Pattern MERCHANT = Pattern.compile(
-            "(?:\\bchez|\\bat|\\bà|\\baupr[eè]s de|\\bpour)\\s+([^,.;:·•\\n()€]{2,40}?)(?=\\s*(?:[,.;:·•\\n(]|$| le | du | a | avec | pour | sur |\\d))", Pattern.CASE_INSENSITIVE);
+            "(?:\\bde la part de|\\bfrom|\\bchez|\\bat|\\bà|\\baupr[eè]s de|\\bpour)\\s+([^,.;:·•\\n()€]{2,40}?)(?=\\s*(?:[,.;:·•\\n(]|$| le | du | a | avec | pour | sur |\\d))", Pattern.CASE_INSENSITIVE);
 
-    private static final String[] INCOME = {"recu", "received", "rembours", "refund", "virement entrant", "credite", "credited", "added", "ajoute", "recharg", "top up", "top-up", "topped", "salaire", "incoming", "a ete verse", "vous a envoye", "sent you", "money in"};
+    // rechargement de Revolut depuis ton propre compte : déjà compté dans l'argent de poche
+    private static final String[] TOPUP = {"recharg", "top up", "top-up", "topped up", "added money", "ajout d'argent", "approvision", "apple pay top", "google pay top"};
+    // argent reçu : compté en plus
+    private static final String[] INCOME = {"recu", "received", "rembours", "refund", "virement entrant", "credite", "credited", "incoming", "a ete verse", "vous a envoye", "sent you", "money in", "versement"};
     private static final String[] SKIP = {"refus", "declin", "echec", "failed", "investi", "invested", "arrondi", "round", "code", "connexion", "login", "secur", "authentif", "valider", "confirm", "gagn", "offre", "parrain", "cashback", "bonus", "promo", "win ", "plafond", "limite", "abonnement revolut", "frais de", "fee"};
 
     static String norm(String s) {
@@ -47,7 +50,8 @@ final class BankParse {
         String full = (title == null ? "" : title) + "\n" + (text == null ? "" : text);
         String n = norm(full);
         for (String k : SKIP) if (n.contains(k)) { r.why = "ignorée (" + k.trim() + ")"; return r; }
-        for (String k : INCOME) if (n.contains(k)) { r.why = "ignorée (argent reçu)"; return r; }
+        for (String k : TOPUP) if (n.contains(k)) { r.why = "ignorée (rechargement)"; return r; }
+        for (String k : INCOME) if (n.contains(k)) { r.in = true; break; }
 
         List<M> ms = new ArrayList<>();
         Matcher m = MONEY.matcher(full);
@@ -94,11 +98,12 @@ final class BankParse {
         }
         if (label != null) {
             label = label.replaceAll("^[^\\p{L}\\p{N}]+", "").trim();
+            label = label.replaceAll("(?i)^(de la part de|de|d'|d’|from)\\s*", "").trim();
             if (label.isEmpty()) label = null;
         }
         r.label = label;
         r.ok = true;
-        r.why = "ajoutée";
+        r.why = r.in ? "reçu" : "ajoutée";
         return r;
     }
 }

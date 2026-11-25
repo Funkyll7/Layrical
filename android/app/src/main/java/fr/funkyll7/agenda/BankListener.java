@@ -61,7 +61,7 @@ public class BankListener extends NotificationListenerService {
         String res = r.why;
         if (r.ok) {
             // la même notification peut être reçue plusieurs fois (mise à jour) : on ignore un doublon dans les 3 minutes
-            String key = bank + "|" + Math.round(r.amt * 100) + "|" + (r.label == null ? "" : r.label);
+            String key = bank + (r.in ? "+" : "-") + Math.round(r.amt * 100) + "|" + (r.label == null ? "" : r.label);
             JSONArray recent = new JSONArray(p.getString("recent", "[]")), keep = new JSONArray();
             boolean dup = false;
             for (int k = 0; k < recent.length(); k++) {
@@ -76,7 +76,7 @@ public class BankListener extends NotificationListenerService {
                 Date d = new Date(ts);
                 JSONObject o = new JSONObject()
                         .put("id", bank.charAt(0) + Long.toString(ts, 36) + Math.round(r.amt * 100))
-                        .put("bank", bank).put("amt", r.amt).put("ts", ts)
+                        .put("bank", bank).put("amt", r.amt).put("in", r.in).put("ts", ts)
                         .put("date", new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(d))
                         .put("time", new SimpleDateFormat("HH:mm", Locale.ROOT).format(d));
                 if (r.bal != null) o.put("bal", r.bal);
@@ -84,7 +84,7 @@ public class BankListener extends NotificationListenerService {
                 JSONArray q = new JSONArray(p.getString("pending", "[]"));
                 q.put(o);
                 p.edit().putString("pending", q.toString()).apply();
-                res = "ajouté : " + String.format(Locale.FRANCE, "%.2f €", r.amt);
+                res = (r.in ? "reçu : +" : "ajouté : ") + String.format(Locale.FRANCE, "%.2f €", r.amt);
             }
             p.edit().putString("recent", keep.toString()).apply();
         }
@@ -95,7 +95,7 @@ public class BankListener extends NotificationListenerService {
         while (raw.length() > 15) raw.remove(0);
         p.edit().putString("raw", raw.toString()).apply();
 
-        if (r.ok && res.startsWith("ajouté")) {
+        if (r.ok && (res.startsWith("ajouté") || res.startsWith("reçu"))) {
             final Context a = c.getApplicationContext();
             new Handler(Looper.getMainLooper()).post(() -> {
                 // appli ouverte : elle l'ajoute tout de suite ; sinon, ajout et synchro en arrière-plan
