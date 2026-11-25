@@ -1,0 +1,50 @@
+name: Appli Android
+
+on:
+  push:
+    branches: [main]
+    paths: ['android/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.APK_KEYSTORE != '' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Clé de signature
+        env:
+          APK_KEYSTORE: ${{ secrets.APK_KEYSTORE }}
+        run: |
+          if [ -n "$APK_KEYSTORE" ]; then
+            echo "$APK_KEYSTORE" | base64 -d > android/agenda.keystore
+          else
+            echo "::warning::Secret APK_KEYSTORE absent : compilation de contrôle seulement, rien n'est publié."
+            keytool -genkeypair -keystore android/agenda.keystore -storepass agenda-layrical -keypass agenda-layrical \
+              -alias agenda -keyalg RSA -keysize 2048 -validity 20000 -dname "CN=Agenda"
+          fi
+      - name: Compiler l'APK
+        run: gradle -p android assembleRelease --no-daemon
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+      - name: Publier (lien fixe : releases/latest/download/agenda.apk)
+        if: env.HAS_KEY == 'true'
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk agenda.apk
+          gh release create "app-${{ github.run_number }}" agenda.apk \
+            --title "Appli Android 1.0.${{ github.run_number }}" \
+            --notes "Agenda + widget « Aujourd’hui ». Télécharge agenda.apk sur ton téléphone et installe-le (par-dessus l’ancienne version si tu l’as déjà)." \
+            --latest
+        env:
+          GH_TOKEN: ${{ github.token }}

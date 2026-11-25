@@ -1,0 +1,33 @@
+plugins { id 'com.android.application' }
+
+def vc = (System.getenv('VERSION_CODE') ?: '1') as int
+
+android {
+    namespace 'fr.funkyll7.agenda'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'fr.funkyll7.agenda'
+        minSdk 26
+        targetSdk 34
+        versionCode vc
+        versionName "1.0.$vc"
+    }
+    // Clé de signature : fournie par le secret GitHub APK_KEYSTORE (jamais dans le dépôt).
+    // Toujours la même clé, pour que chaque version s'installe par-dessus l'ancienne sans rien perdre.
+    signingConfigs {
+        rel {
+            storeFile rootProject.file('agenda.keystore')
+            storePassword 'agenda-layrical'
+            keyAlias 'agenda'
+            keyPassword 'agenda-layrical'
+        }
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.rel }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    lint { checkReleaseBuilds false; abortOnError false }
+}

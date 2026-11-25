@@ -59,3 +59,10 @@ Faits main en SVG/HTML (aucune bibliothèque) dans app.js, section « Graphiques
 - Nouvelle catégorie de budget : `CATS` dans app.js.
 - Couleurs : variables `:root` dans app.css.
 - Changer la version du cache : `V` dans sw.js (purge les anciens caches).
+
+## Appli Android + widget
+`android/` : petite appli Java sans dépendance, compilée par `.github/workflows/android.yml` et publiée en Release (`releases/latest/download/agenda.apk`).
+- `MainActivity` : le site en plein écran dans une WebView (liens externes ouverts dans le navigateur).
+- `AgendaWidget` : widget d'écran d'accueil. Le site lui envoie son résumé via `window.AgendaNative.update(json)` (`widgetData()` dans app.js : événements du jour et de demain, solde, prochain salaire, point bas). Toutes les 30 min (ou bouton ↻), le widget charge le site en arrière-plan avec `?bg=1` : synchro GitHub, envoi du résumé, puis `AgendaNative.done()`.
+- Le jeton de synchro est collé une fois dans l'appli (stockage séparé de Chrome). Les notifications restent gérées par Chrome.
+- Signature : secret GitHub `APK_KEYSTORE` (keystore en base64, alias `agenda`), jamais dans le dépôt ; toujours la même clé, pour que chaque version s'installe par-dessus la précédente. Sans ce secret, la tâche compile seulement (contrôle) et ne publie rien.
