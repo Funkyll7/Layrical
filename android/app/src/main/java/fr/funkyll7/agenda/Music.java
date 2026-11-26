@@ -88,6 +88,17 @@ final class Music {
         }, 2500);
     }
 
+    /** Relance la dernière musique écoutée, quelle que soit l'appli (touche « Lecture » du système). */
+    static void playAny(Context ctx) {
+        Context c = ctx.getApplicationContext();
+        try {
+            MediaSessionManager m = c.getSystemService(MediaSessionManager.class);
+            List<MediaController> l = m.getActiveSessions(new ComponentName(c, BankListener.class));
+            if (!l.isEmpty()) { l.get(0).getTransportControls().play(); return; }
+        } catch (Exception ignored) { }
+        key(c, false);
+    }
+
     static void playList(Context c) {
         if (url(c).isEmpty()) { Toast.makeText(c, "Ajoute d’abord le lien de ta playlist dans l’appli (🎵).", Toast.LENGTH_LONG).show(); return; }
         try { c.startActivity(listIntent(c)); } catch (Exception e) { Toast.makeText(c, "Lien de playlist illisible.", Toast.LENGTH_LONG).show(); }

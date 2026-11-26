@@ -86,14 +86,20 @@ function contactsCard(){const L=(S.contacts||[]).slice().sort((a,b)=>a.name.loca
 const okYtUrl=u=>/^https:\/\/(music\.youtube\.com|(www\.|m\.)?youtube\.com|youtu\.be)\//i.test(u||'');
 function musicSync(){try{const m=S.music||{};if(window.AgendaNative&&AgendaNative.musicSet)AgendaNative.musicSet(m.url||'',m.wmode||'resume')}catch(e){}}
 function musicF(){const m=S.music||{url:'',wmode:'resume'},has=!!m.url;
- sheet('<h2 style="margin-top:0">🎵 YouTube Music</h2><button class="go" style="margin-top:0" onclick="AgendaNative.musicPlay(\'resume\');closeF()">▶ Reprendre ma dernière écoute</button>'
- +(has?'<button class="go" style="background:var(--acs);color:var(--ac)" onclick="AgendaNative.musicPlay(\'list\');closeF()">🎶 Lancer ma playlist</button>':'')
+ const bub=!!(AgendaNative.bubbleShow),bon=bub&&AgendaNative.bubbleOn();
+ sheet('<h2 style="margin-top:0">🎵 Musique</h2><button class="go" style="margin-top:0" onclick="musicGo(\'resume\')">▶ Reprendre ma dernière écoute</button>'
+ +(has?'<button class="go" style="background:var(--acs);color:var(--ac)" onclick="musicGo(\'list\')">🎶 Lancer ma playlist</button>':'')
+ +(bub?'<h3 class="mu-h">🫧 Bulle de contrôle</h3><small style="color:var(--mu);font-size:12.5px;display:block">Des boutons ⏮ ⏯ ⏭ qui flottent au-dessus de toutes les applis (Waze compris) et pilotent la musique en cours, quelle que soit l’appli. Glisse 🎵 pour la déplacer, touche-la pour ouvrir ou fermer les boutons.</small>'
+  +'<button class="go" style="background:var(--ln);color:var(--ink)" onclick="bubToggle()">'+(bon?'Masquer la bulle':'Afficher la bulle')+'</button>'
+  +'<label class="pk-r"><input type="checkbox" id="mu_b" '+(m.bub?'checked':'')+'> Afficher la bulle quand je lance la musique ou Waze + musique</label>':'')
  +'<label>Lien de ma playlist favorite</label><input id="mu_u" value="'+esc(m.url||'')+'" placeholder="https://music.youtube.com/playlist?list=…"><small style="color:var(--mu);font-size:12px;display:block;margin-top:4px">Dans YouTube Music : ta playlist → ⋮ → Partager → Copier le lien.</small>'
  +'<label>Le bouton ♫ du widget lance</label><div class="seg" id="mu_w"><button type="button" class="'+(m.wmode!='list'?'on':'')+'" onclick="pkT(this)">Ma dernière écoute</button><button type="button" class="'+(m.wmode=='list'?'on':'')+'" onclick="pkT(this)">Ma playlist</button></div>'
  +'<small style="color:var(--mu);font-size:12px;display:block;margin-top:8px">Sans YouTube Music Premium, la musique ne joue que quand YouTube Music est à l’écran : l’appli l’ouvre donc au premier plan et lance la lecture.</small>'
  +'<button class="go" onclick="musicSave()">Enregistrer</button>')}
+function musicGo(k){if(S.music&&S.music.bub&&AgendaNative.bubbleShow)AgendaNative.bubbleShow();AgendaNative.musicPlay(k);closeF()}
+function bubToggle(){if(AgendaNative.bubbleOn())AgendaNative.bubbleHide();else if(!AgendaNative.bubbleShow()){alert('Autorise « Agenda » à s’afficher par-dessus les autres applis, puis reviens et touche à nouveau « Afficher la bulle ».');}closeF()}
 function musicSave(){const u=$('#mu_u').value.trim(),w=($('#mu_w button.on')||{}).textContent=='Ma playlist'?'list':'resume';if(u&&!okYtUrl(u)){alert('Colle un lien YouTube Music (https://music.youtube.com/…).');return}if(w=='list'&&!u){alert('Ajoute le lien de ta playlist pour que le widget la lance.');return}
- S.music={url:u,wmode:w};save();musicSync();closeF()}
+ S.music={url:u,wmode:w,bub:!!($('#mu_b')&&$('#mu_b').checked)};save();musicSync();closeF()}
 const BankNorm=s=>String(s||'').normalize('NFD').replace(/\p{M}/gu,'').toLowerCase();
 // Fenêtre 📍 (barre du haut) : toutes les adresses, défilables, avec recherche
 function adrF(){const L=(S.contacts||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'fr'));
@@ -104,7 +110,7 @@ function adFilter(q){const w=BankNorm(q).split(/\s+/).filter(Boolean);document.q
 function goF(id){const c=(S.contacts||[]).find(x=>x.id==id);if(!c)return;
  sheet('<h2 style="margin-top:0">'+(c.emo||'📍')+' '+esc(c.name)+'</h2><p style="margin:0 0 14px;color:var(--mu)">'+esc(c.addr)+'</p>'
  +'<a class="go waze" href="'+wazeUrl(c.addr)+'" target="_blank" rel="noopener" onclick="setTimeout(closeF,300)">🚗 Y aller avec Waze</a>'
- +'<a class="go alt" href="'+gmapsUrl(c.addr)+'" target="_blank" rel="noopener" onclick="setTimeout(closeF,300)">🗺️ Plutôt Google Maps</a>'
+ +(window.AgendaNative&&AgendaNative.wazeMusic?'<button class="go alt" onclick="AgendaNative.wazeMusic(\''+wazeUrl(c.addr)+'\','+(S.music&&S.music.bub?'true':'false')+');closeF()">🚗🎵 Waze + musique</button>':'')+'<a class="go alt" href="'+gmapsUrl(c.addr)+'" target="_blank" rel="noopener" onclick="setTimeout(closeF,300)">🗺️ Plutôt Google Maps</a>'
  +(c.tel?'<a class="go alt" href="tel:'+esc(c.tel.replace(/[^\d+]/g,''))+'">📞 Appeler '+esc(c.tel)+'</a>':'')
  +'<div style="display:flex;gap:8px;margin-top:10px"><button class="pill" style="border:0;cursor:pointer" onclick="ctF(\''+c.id+'\')">✎ Modifier</button><button class="pill" style="border:0;cursor:pointer" onclick="ctDel(\''+c.id+'\')">✕ Supprimer</button></div>')}
 function ctF(id){const c=id?(S.contacts||[]).find(x=>x.id==id):null,e=c&&c.emo||'📍';

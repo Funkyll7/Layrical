@@ -230,3 +230,5 @@ details.more .cr:last-child{border-bottom:0}
 @media (min-width:1000px){.mub{right:388px}}body.wide .mub{right:28px}
 @media (max-width:999px){.mub{top:calc(8px + env(safe-area-inset-top,0px));bottom:auto;right:158px;width:40px;height:40px;font-size:19px;box-shadow:none}
  #sy{max-width:calc(100% - 230px)!important}}
+
+.mu-h{font-size:15px;margin:18px 0 4px}button.go.alt{border:0}

@@ -102,6 +102,39 @@ final class Web {
         @JavascriptInterface
         public boolean musicInstalled() { return Music.installed(c); }
 
+        /** Bulle de contrôle : vrai si affichée ; sinon ouvre le réglage « afficher par-dessus les autres applis ». */
+        @JavascriptInterface
+        public boolean bubbleShow() {
+            if (!Bubble.canShow(c)) {
+                c.startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + c.getPackageName())).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return false;
+            }
+            new Handler(Looper.getMainLooper()).post(() -> Bubble.show(c));
+            return true;
+        }
+
+        @JavascriptInterface
+        public void bubbleHide() { Bubble.hide(c); }
+
+        @JavascriptInterface
+        public boolean bubbleOn() { return Bubble.on; }
+
+        @JavascriptInterface
+        public boolean canOverlay() { return Bubble.canShow(c); }
+
+        /** Waze + musique : relance la musique, affiche la bulle (si autorisée), puis ouvre Waze sur l'adresse. */
+        @JavascriptInterface
+        public void wazeMusic(String url, boolean bubble) {
+            Handler h = new Handler(Looper.getMainLooper());
+            h.post(() -> {
+                Music.playAny(c);
+                if (bubble && Bubble.canShow(c)) Bubble.show(c);
+                h.postDelayed(() -> {
+                    try { c.startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception ignored) { }
+                }, 700);
+            });
+        }
+
         /** Fin de la mise à jour en arrière-plan. */
         @JavascriptInterface
         public void done() {
