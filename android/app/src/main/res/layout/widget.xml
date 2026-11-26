@@ -8,10 +8,10 @@
     android:padding="16dp"
     android:background="@drawable/widget_bg">
 
-    <!-- En-tête : date · actualiser -->
+    <!-- En-tête : date · 🎵 · ↻ sur la même ligne, centrés -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="28dp"
         android:orientation="horizontal"
         android:gravity="center_vertical">
         <TextView
@@ -19,6 +19,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:layout_gravity="center_vertical"
+            android:includeFontPadding="false"
             android:fontFamily="sans-serif-medium"
             android:textColor="#4CC3C3"
             android:textSize="12.5sp"
@@ -28,23 +30,29 @@
             android:ellipsize="end" />
         <TextView
             android:id="@+id/music"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:paddingStart="12dp"
-            android:paddingEnd="6dp"
-            android:fontFamily="sans-serif"
+            android:layout_width="34dp"
+            android:layout_height="28dp"
+            android:layout_gravity="center_vertical"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:paddingBottom="2dp"
             android:textColor="#FFFFFF"
-            android:textSize="17sp"
+            android:textSize="15sp"
             android:text="🎵" />
+        <FrameLayout
+            android:layout_width="14dp"
+            android:layout_height="1dp" />
         <TextView
             android:id="@+id/refresh"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:paddingStart="12dp"
-            android:paddingEnd="2dp"
+            android:layout_width="30dp"
+            android:layout_height="28dp"
+            android:layout_gravity="center_vertical"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:paddingBottom="2dp"
             android:fontFamily="sans-serif"
-            android:textColor="#5F8486"
-            android:textSize="15sp"
+            android:textColor="#7FA0A3"
+            android:textSize="16sp"
             android:text="↻" />
     </LinearLayout>
 
