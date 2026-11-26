@@ -97,23 +97,43 @@ function todayCard(){const T=dayEvents(TD).filter(e=>!e.dn),D=dayEvents(dayAdd(T
  const li=L=>L.map(e=>'<div class="tl"><span class="tl-e">'+e.e+'</span><b>'+esc(e.t)+'</b>'+(e.a?'<em class="'+(e.a<0?'neg':'pos')+'">'+(e.a>0?'+':'−')+eur(Math.abs(e.a))+'</em>':'')
   +(e.k=='rappel'?'<button class="x dn" aria-label="Marquer comme fait" title="C’est fait" onclick="doneIt(\''+e.id+'\',\''+(L===T?TD:dayAdd(TD,1))+'\')">✓</button>':'')+'</div>').join('');
  return '<h2>📅 Aujourd’hui</h2><div class="card tday">'+(T.length?li(T):'<div class="empty" style="padding:6px 0">Rien de prévu aujourd’hui ✨</div>')
-  +'<div class="tl-h">Demain</div>'+(D.length?li(D):'<div class="empty" style="padding:4px 0 2px">Rien de prévu</div>')+'</div>'}
+  +(D.length?'<div class="tl-h">Demain</div>'+li(D):'<div class="tl-h" style="margin-bottom:4px">Demain · <span style="text-transform:none;letter-spacing:0;font-weight:500">rien de prévu</span></div>')+'</div>'}
 function more(key,n,html){let o=false;try{o=localStorage.getItem('more-'+key)=='1'}catch(e){}
  return '<details class="more"'+(o?' open':'')+' ontoggle="try{localStorage.setItem(\'more-'+key+'\',this.open?\'1\':\'0\')}catch(e){}"><summary>'+n+'</summary>'+html+'</details>'}
+// --- Accueil dense (inspiré de Revolut / Monzo : un solde en héros, des tuiles « coup d'œil », des listes sur une ligne) ---
+function heroCard(inc,out){const n=balNow(),e=n===null?null:balEom(),m=MO[+TD.slice(5,7)-1];
+ return '<div class="hero" role="button" tabindex="0" onclick="balF()"><small>Solde '+(n===null?'':'(estimé)')+'</small>'
+ +(n===null?'<b class="hb-set">Touche pour définir ton solde</b>':'<b class="'+(n>=0?'pos':'neg')+'">'+eur(n)+'</b>')
+ +'<div class="hstats"><span><small>Fin du mois</small><b class="'+(e!==null&&e<0?'neg':'')+'">'+(e===null?'—':eur(e))+'</b></span><span><small>Reçu en '+m+'</small><b>'+eur(inc)+'</b></span><span><small>Dépensé</small><b>'+eur(Math.abs(out))+'</b></span></div></div>'}
+function tile(ic,lab,val,sub,cls,go,bar){return '<button class="tile'+(cls?' '+cls:'')+'" onclick="'+go+'"><small>'+ic+' '+lab+'</small><b>'+val+'</b>'+(bar!=null?'<i class="tbar"><i style="width:'+Math.max(0,Math.min(100,bar)).toFixed(0)+'%"></i></i>':'')+'<span>'+sub+'</span></button>'}
+function tilesHTML(){const r=salRec(),f=r?forecast():null,go=t=>"S.tab='"+t+"';render();scrollTo(0,0)",T=[];
+ if(!r)T.push(tile('💼','Salaire','À régler','touche pour l’indiquer','',"salF()"));
+ else T.push(tile('💼','Salaire',f?inj(f.D):'—',f?dl(f.nxt)+' · '+eur(r.amt):'le '+r.day+' du mois','',go('bu')));
+ if(f&&f.B!==null)T.push(tile(f.def?'⚠️':'📉','Point bas',eur(f.low),f.def?'sous ta limite : ouvre Budget':dl(f.lowDay)+' · limite '+eur(f.floor),f.def?'bad':f.low<0?'warn':'ok',go('bu')));
+ else T.push(tile('📉','Point bas','—','définis ton solde','',"balF()"));
+ const p=pocheStats(),tot=p.bud+p.inc;T.push(tile('🎉','Argent de poche',eur(p.left),'sur '+eur(tot)+(p.sp?' · '+eur(p.sp)+' dépensés':''),p.left<0?'bad':'',go('bu'),tot?100*(p.sp+p.rd)/tot:0));
+ let ep=0,iv=0;try{ep=pepTot();const st=invStats();iv=st.val==null?st.put:st.val}catch(e){}
+ T.push(tile('🐷','Épargne',eur(ep+iv),'dont S&P 500 '+eur(iv),'',go('ep')));
+ return '<div class="tiles">'+T.join('')+'</div>'}
+function cRow(e){const it=e.it,ty=it?TY[it.type]:null,n=diff(e.s),d=e.s==TD?'Aujourd’hui':e.s==dayAdd(TD,1)?'Demain':dl(e.s);
+ if(e.h)return '<div class="cr"><span class="cr-e">🇫🇷</span><span class="cr-t"><b>'+esc(e.h)+'</b><small>'+d+' · férié</small></span></div>';
+ if(e.dt)return '<div class="cr"><span class="cr-e">💸</span><span class="cr-t"><b>'+esc(e.dt.who||'Dette')+'</b><small>'+d+' · remboursement</small></span></div>';
+ const a=isInst(it)?instAmt(it,e.s):+it.amt||0;
+ return '<button class="cr" onclick="openEdit(\'it\',\''+it.id+'\')"><span class="cr-e">'+ty[2]+'</span><span class="cr-t"><b>'+esc(it.title)+'</b><small>'+d+(it.time?' · '+it.time:'')+' · '+ty[0]+'</small></span>'+(a?'<em>−'+eur(a)+'</em>':'')+'<span class="cr-n'+(n<=3?' soon':'')+'">'+(n==0?'auj.':n+' j')+'</span></button>'}
+function setRow(){return '<div class="sets"><button onclick="bk()">💾<span>Sauvegarde</span></button><button onclick="gs()">🔄<span>Synchro</span></button><button onclick="notifF()">🔔<span>Notifications</span></button>'
+ +(window.AgendaNative?'':'<a href="https://github.com/Funkyll7/Layrical/releases/latest/download/agenda.apk" target="_blank" rel="noopener">📲<span>Appli Android</span></a>')+'</div>'}
 function home(){
  let ev=[];for(let i=0;i<=30;i++){const d=P(TD);d.setDate(d.getDate()+i);const s=iso(d);on(s).forEach(it=>{if(!isDone(it,s))ev.push({s,it})});dueOn(s).forEach(dt=>ev.push({s,dt}));const h=holName(s);if(h)ev.push({s,h})}
  const ren=S.items.filter(i=>i.type=='renouv')
   .map(i=>({i,s:next(i)})).filter(o=>diff(o.s)<=60&&diff(o.s)>=0).sort((a,b)=>a.s<b.s?-1:1);
  const tx=monthAll(+TD.slice(0,4),+TD.slice(5,7)-1).filter(t=>t.date<=TD),inc=tx.filter(t=>t.amt>0).reduce((a,t)=>a+t.amt,0),out=tx.filter(t=>t.amt<0).reduce((a,t)=>a+t.amt,0);
  const hr=new Date().getHours(),hello=hr<5||hr>=18?'Bonsoir':'Bonjour',jour=P(TD).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
- const up=ev.filter(e=>e.s>dayAdd(TD,1)),row=e=>e.h?holRow(e.s,e.h):e.dt?debtRow(e.dt):itemRow(e.it,e.s);
+ const up=ev.filter(e=>e.s>dayAdd(TD,1));
  return '<div class="hd"><h1>'+hello+' 👋</h1><div class="hd-s">'+jour.charAt(0).toUpperCase()+jour.slice(1)+appVer()+'</div></div>'+alerts()
- +'<div class="sum">'+balCard()+'<div><small>Revenus de '+MO[+TD.slice(5,7)-1]+'</small><b>'+eur(inc)+'</b></div><div><small>Dépenses de '+MO[+TD.slice(5,7)-1]+'</small><b>'+eur(Math.abs(out))+'</b></div></div>'
- +todayCard()+fcCard(true)
- +(ren.length?'<h2>⏳ À surveiller</h2><div class="card">'+ren.map(o=>itemRow(o.i,o.s)).join('')+'</div>':'')
- +'<h2>🗓️ À venir (30 jours)</h2><div class="card">'+(up.length?up.slice(0,5).map(row).join('')+(up.length>5?more('up','Voir les '+(up.length-5)+' suivants',up.slice(5).map(row).join('')):''):'<div class="empty">Rien de prévu. Appuie sur + pour ajouter.</div>')+'</div>'
- +contactsCard()
- +'<h2>Données</h2><div class="card"><div class="row"><div class="t"><b>Sauvegarde</b><small>Exporter ou importer tout en JSON</small></div><button class="pill" style="border:0" onclick="bk()">Ouvrir</button></div><div class="row"><div class="t"><b>Synchro GitHub</b><small>Dépôt privé et token</small></div><button class="pill" style="border:0" onclick="gs()">Régler</button></div><div class="row"><div class="t"><b>🔔 Notifications</b><small>'+(window.AgendaNative?'Gérées par l’appli':notifOn()?'Activées sur cet appareil':'Rappels sur ton téléphone')+'</small></div><button class="pill" style="border:0" onclick="notifF()">Régler</button></div>'+(window.AgendaNative?'':'<div class="row"><div class="t"><b>📲 Appli Android + widget</b><small>Le résumé du jour et ton budget sur l’écran d’accueil</small></div><a class="pill" style="border:0;text-decoration:none" href="https://github.com/Funkyll7/Layrical/releases/latest/download/agenda.apk" target="_blank" rel="noopener">Télécharger</a></div>')+'</div>'}
+ +heroCard(inc,out)+tilesHTML()+todayCard()
+ +(ren.length?'<h2>⏳ À surveiller</h2><div class="card cl">'+ren.map(o=>cRow({s:o.s,it:o.i})).join('')+'</div>':'')
+ +'<h2>🗓️ À venir</h2><div class="card cl">'+(up.length?up.slice(0,6).map(cRow).join('')+(up.length>6?more('up','Voir les '+(up.length-6)+' suivants (30 jours)',up.slice(6).map(cRow).join('')):''):'<div class="empty">Rien de prévu. Appuie sur + pour ajouter.</div>')+'</div>'
+ +contactsCard()+setRow()}
 function agenda(){if(wideAg())return bigAgenda();
  const y=S.cy,m=S.cm,first=new Date(y,m,1,12),off=(first.getDay()+6)%7,dim=new Date(y,m+1,0).getDate();
  let g=['L','M','M','J','V','S','D'].map(d=>'<div class="h">'+d+'</div>').join('');
