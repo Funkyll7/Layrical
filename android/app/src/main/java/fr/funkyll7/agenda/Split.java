@@ -182,58 +182,152 @@ public class Split extends AccessibilityService {
                 .addStroke(new GestureDescription.StrokeDescription(p, 0, 60)).build(), null, null);
     }
 
-    // ---------- déroulé ----------
+    // ---------- déroulé (gestes Honor, comme à la main) ----------
 
+    static final String WAZE = "com.waze";
+
+    /** Package de l'appli affichée dans une fenêtre, ou "". */
+    private static String pkg(AccessibilityWindowInfo w) {
+        try { AccessibilityNodeInfo r = w.getRoot(); return r == null || r.getPackageName() == null ? "" : r.getPackageName().toString(); }
+        catch (Exception e) { return ""; }
+    }
+
+    /** Fenêtre d'appli d'un package donné (bornes dans r), ou false. */
+    private static boolean windowOf(String p, Rect r) {
+        Split s = me;
+        if (s == null) return false;
+        try {
+            for (AccessibilityWindowInfo w : s.getWindows()) {
+                if (w.getType() == AccessibilityWindowInfo.TYPE_APPLICATION && p.equals(pkg(w))) { w.getBoundsInScreen(r); return true; }
+            }
+        } catch (Exception ignored) { }
+        return false;
+    }
+
+    /** Attend qu'une appli soit à l'écran (vérifie toutes les ½ s), puis lance la suite. */
+    private static void waitFor(Handler h, String p, long left, Runnable ok, Runnable ko) {
+        if (windowOf(p, new Rect())) { ok.run(); return; }
+        if (left <= 0) { ko.run(); return; }
+        h.postDelayed(() -> waitFor(h, p, left - 500, ok, ko), 500);
+    }
+
+    /**
+     * 1. Waze sur l'adresse (on attend qu'il ait chargé l'itinéraire)
+     * 2. applis récentes → petit carré « fenêtre flottante » de la carte Waze
+     * 3. YouTube Music s'ouvre derrière et lance la musique (Waze flotte devant)
+     * 4. la fenêtre Waze est glissée tout en bas → écran partagé : YouTube Music en haut, Waze en bas
+     * 5. barre du milieu à ¼, puis relance de la lecture si besoin
+     */
     static void go(Context ctx, String wazeUrl, boolean bubble) {
         final Context c = ctx.getApplicationContext();
         final Handler h = new Handler(Looper.getMainLooper());
         LOG.setLength(0);
-        log("Agenda écran partagé · " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE);
+        log("Agenda écran partagé v3 · " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE);
         if (bubble && Bubble.canShow(c)) Bubble.show(c);
 
-        // 1. Waze sur l'adresse
+        // 1. Waze
         if (!openWaze(c, wazeUrl, false)) return;
-        // 2. YouTube Music + lecture
-        h.postDelayed(() -> {
-            if (Music.widgetPlaysList(c)) Music.playList(c); else Music.openAndPlay(c);
-            log("1-2. Waze puis YouTube Music ouverts");
-        }, 2500);
-        // 3. écran partagé
-        h.postDelayed(() -> {
-            Split s = me;
-            if (s == null) { log("service coupé"); fail(c, wazeUrl); return; }
-            if (s.performGlobalAction(GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)) {
-                log("3. action système écran partagé : acceptée");
-                h.postDelayed(() -> { openWaze(c, wazeUrl, true); finish(c, h, 1800); }, 1500);
-                return;
-            }
-            log("3. action système écran partagé : refusée → applis récentes");
-            s.performGlobalAction(GLOBAL_ACTION_RECENTS);
+        waitFor(h, WAZE, 12000, () -> {
+            log("1. Waze à l'écran, attente de l'itinéraire");
+            // 2. applis récentes → fenêtre flottante sur Waze
             h.postDelayed(() -> {
-                dump("applis récentes");
-                AccessibilityNodeInfo b = splitButton(all());
-                if (b == null || !click(b)) { log("bouton écran partagé introuvable"); fail(c, wazeUrl); return; }
-                log("3. bouton écran partagé touché : " + label(b).trim());
-                // 4. Waze en bas
+                Split s = me;
+                if (s == null) { log("service coupé"); fail(c, wazeUrl); return; }
+                s.performGlobalAction(GLOBAL_ACTION_RECENTS);
                 h.postDelayed(() -> {
-                    dump("après écran partagé");
-                    List<AccessibilityNodeInfo> l = all();
-                    AccessibilityNodeInfo w = null;
-                    for (AccessibilityNodeInfo n : l) {
-                        String lb = label(n);
-                        if (lb.contains("Waze") && !lb.contains("YouTube")) { w = n; break; }
-                    }
-                    if (w != null && click(w)) log("4. carte Waze touchée");
-                    else { log("4. carte Waze introuvable → Waze ouvert à côté"); openWaze(c, wazeUrl, true); }
-                    finish(c, h, 1800);
-                }, 1600);
-            }, 1200);
-        }, 6000);
+                    dump("applis récentes");
+                    AccessibilityNodeInfo f = floatButton(all(), "Waze");
+                    if (f == null || !click(f)) { log("2. carré fenêtre flottante de Waze introuvable"); fail(c, wazeUrl); return; }
+                    log("2. Waze en fenêtre flottante");
+                    // 3. YouTube Music derrière
+                    h.postDelayed(() -> {
+                        if (Music.widgetPlaysList(c)) Music.playList(c); else Music.openAndPlay(c);
+                        log("3. YouTube Music ouvert");
+                        // 4. Waze glissé tout en bas
+                        h.postDelayed(() -> dragWazeDown(c, h, wazeUrl), 3500);
+                    }, 1500);
+                }, 1300);
+            }, 4500);
+        }, () -> { log("1. Waze n'est pas apparu"); fail(c, wazeUrl); });
+    }
+
+    /** Petit carré « ouvrir dans une fenêtre flottante » de la carte d'une appli, dans les applis récentes. */
+    private static AccessibilityNodeInfo floatButton(List<AccessibilityNodeInfo> l, String app) {
+        for (AccessibilityNodeInfo n : l) {
+            if (!label(n).toLowerCase().contains("flottante") && !label(n).toLowerCase().contains("floating")) continue;
+            AccessibilityNodeInfo card = n.getParent();
+            if (card == null) continue;
+            for (int i = 0; i < card.getChildCount(); i++) {
+                AccessibilityNodeInfo k = card.getChild(i);
+                if (k != null && k != n && label(k).contains(app)) return n;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Appui long sur la poignée de la fenêtre flottante Waze (au milieu, en haut de la fenêtre),
+     * puis glissement jusqu'en bas de l'écran. Si Waze flotte encore, on réessaie un peu plus haut,
+     * puis depuis le milieu de l'écran.
+     */
+    private static void dragWazeDown(Context c, Handler h, String wazeUrl) {
+        dump("Waze flottant + YouTube Music");
+        tryDrag(c, h, wazeUrl, 0);
+    }
+
+    private static void tryDrag(Context c, Handler h, String wazeUrl, int n) {
+        Split s = me;
+        Rect r = new Rect();
+        if (s == null || !windowOf(WAZE, r)) { log("4. fenêtre Waze introuvable"); fail(c, wazeUrl); return; }
+        DisplayMetrics dm = new DisplayMetrics();
+        ((WindowManager) s.getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getRealMetrics(dm);
+        boolean floating = r.height() < dm.heightPixels * 0.9f && r.bottom < dm.heightPixels - dm.density * 24;
+        if (!floating) {
+            if (n == 0) { log("4. Waze n'est pas flottant " + r.toShortString()); fail(c, wazeUrl); return; }
+            log("4. Waze n'est plus flottant " + r.toShortString() + " : écran partagé");
+            finish(c, h, 300);
+            return;
+        }
+        if (n >= 3) { log("4. Waze toujours flottant après 3 essais"); dump("échec du glissement"); saveLog(c); finish(c, h, 300); return; }
+        float x = dm.widthPixels / 2f;                       // poignée au milieu
+        float y = n == 0 ? r.top + dm.density * 8            // en haut de la fenêtre
+                : n == 1 ? r.top - dm.density * 6            // juste au-dessus
+                : dm.heightPixels / 2f;                      // milieu de l'écran
+        float to = dm.heightPixels - dm.density * 4;
+        log("4. essai " + (n + 1) + " : Waze " + r.toShortString() + ", appui à " + (int) x + "," + (int) y + " → " + (int) to);
+        drag(s, x, y, to, 500, 900);
+        h.postDelayed(() -> tryDrag(c, h, wazeUrl, n + 1), 2600);
+    }
+
+    /** Appui maintenu puis glissement vertical. */
+    private static void drag(Split s, float x, float from, float to, long hold, long move) {
+        Path p = new Path();
+        p.moveTo(x, from);
+        final GestureDescription.StrokeDescription press = new GestureDescription.StrokeDescription(p, 0, hold, true);
+        try {
+            s.dispatchGesture(new GestureDescription.Builder().addStroke(press).build(), new GestureResultCallback() {
+                @Override public void onCompleted(GestureDescription g) {
+                    Split s2 = me;
+                    if (s2 == null) return;
+                    Path m = new Path();
+                    m.moveTo(x, from);
+                    m.lineTo(x, to);
+                    s2.dispatchGesture(new GestureDescription.Builder()
+                            .addStroke(press.continueStroke(m, 0, move, false)).build(), null, null);
+                }
+            }, null);
+        } catch (Exception e) { log("glissement impossible : " + e); }
     }
 
     private static boolean openWaze(Context c, String url, boolean adjacent) {
         Context from = me != null ? me : c;
         int f = Intent.FLAG_ACTIVITY_NEW_TASK | (adjacent ? Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT : 0);
+        // lien natif de Waze (ouvre directement l'itinéraire), sinon le lien web
+        String q = url.contains("?") ? url.substring(url.indexOf('?')) : "";
+        try {
+            from.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("waze://" + q)).setPackage(WAZE).addFlags(f));
+            return true;
+        } catch (Exception ignored) { }
         try {
             from.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(f));
             return true;
@@ -285,21 +379,6 @@ public class Split extends AccessibilityService {
         log("5. barre à " + (int) from + " px → " + (int) to + " px (haut " + top.toShortString() + ", bas " + bot.toShortString() + ")");
         if (Math.abs(from - to) < dm.heightPixels * 0.03f) return;
 
-        Path hold = new Path();
-        hold.moveTo(x, from);
-        final GestureDescription.StrokeDescription press = new GestureDescription.StrokeDescription(hold, 0, 350, true);
-        try {
-            s.dispatchGesture(new GestureDescription.Builder().addStroke(press).build(), new GestureResultCallback() {
-                @Override public void onCompleted(GestureDescription g) {
-                    Split s2 = me;
-                    if (s2 == null) return;
-                    Path move = new Path();
-                    move.moveTo(x, from);
-                    move.lineTo(x, to);
-                    s2.dispatchGesture(new GestureDescription.Builder()
-                            .addStroke(press.continueStroke(move, 0, 700, false)).build(), null, null);
-                }
-            }, null);
-        } catch (Exception e) { log("5. glissement impossible : " + e); }
+        drag(s, x, from, to, 400, 700);
     }
 }
