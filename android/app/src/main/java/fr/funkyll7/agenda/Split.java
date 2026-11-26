@@ -232,7 +232,7 @@ public class Split extends AccessibilityService {
         final Context c = ctx.getApplicationContext();
         final Handler h = new Handler(Looper.getMainLooper());
         LOG.setLength(0);
-        log("Agenda écran partagé v3 · " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE);
+        log("Agenda écran partagé v5 · " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE);
         if (bubble && Bubble.canShow(c)) Bubble.show(c);
 
         // 1. Waze
@@ -277,7 +277,7 @@ public class Split extends AccessibilityService {
 
     static final String YTM = Music.YTM;
     /** Poignée (barre bleue) de la fenêtre flottante Waze, mesurée sur l'Honor : milieu, à 23 % de la hauteur. */
-    private static final float[] HANDLE = {0.230f, 0.255f, 0.210f, 0.275f};
+    private static final float[] HANDLE = {0.230f, 0.230f, 0.230f};
 
     /**
      * En ouvrant YouTube Music, Honor réduit Waze en bulle (à droite de l'écran) :
@@ -331,19 +331,26 @@ public class Split extends AccessibilityService {
         if (n >= HANDLE.length) { log("4. pas d'écran partagé après " + n + " essais"); dump("échec du glissement"); saveLog(c); finish(c, h, 300); return; }
         Rect r = new Rect();
         boolean seen = windowOf(WAZE, r) && r.height() < dm.heightPixels * 0.9f;
+        // Honor : il faut RESTER APPUYÉ sur la poignée (la fenêtre rétrécit) avant de glisser,
+        // sinon la fenêtre est juste déplacée. Puis descente lente et appui maintenu en bas
+        // jusqu'à « Relâcher pour ajouter une application ».
         float x = seen ? r.centerX() : dm.widthPixels / 2f;
-        float y = seen ? r.top + dm.density * 13 + (n - 1) * dm.density * 6 : dm.heightPixels * HANDLE[n];
-        float to = dm.heightPixels - dm.density * 4;
-        log("4. essai " + (n + 1) + (seen ? " (Waze vu " + r.toShortString() + ")" : " (position mesurée)") + " : poignée " + (int) x + "," + (int) y + " → " + (int) to);
-        drag(s, x, y, to, 200, 900);
-        h.postDelayed(() -> tryDrag(c, h, wazeUrl, n + 1), 2600);
+        float y = seen ? r.top + dm.density * 14 : dm.heightPixels * HANDLE[n];
+        y = Math.min(y, dm.heightPixels - dm.density * 30);   // fenêtre garée en bas : on reprend sa poignée
+        float to = dm.heightPixels - 1;                     // tout en bas, jusqu'au bord de l'écran
+        long hold = 1000 + 600L * n;
+        log("4. essai " + (n + 1) + (seen ? " (Waze vu " + r.toShortString() + ")" : " (position mesurée)") + " : appui " + hold + " ms sur " + (int) x + "," + (int) y + " → " + (int) to);
+        drag(s, x, y, to, hold, 1500, 1200);
+        h.postDelayed(() -> tryDrag(c, h, wazeUrl, n + 1), hold + 1500 + 1200 + 1800);
     }
 
     /**
      * Appui maintenu, glissement vertical, puis on reste appuyé à l'arrivée avant de lâcher
      * (Honor affiche « Relâcher pour ajouter une application » quand la fenêtre touche le bas).
      */
-    private static void drag(Split s, float x, float from, float to, long hold, long move) {
+    private static void drag(Split s, float x, float from, float to, long hold, long move) { drag(s, x, from, to, hold, move, 700); }
+
+    private static void drag(Split s, float x, float from, float to, long hold, long move, long endHold) {
         Path p = new Path();
         p.moveTo(x, from);
         final GestureDescription.StrokeDescription press = new GestureDescription.StrokeDescription(p, 0, hold, true);
@@ -363,7 +370,7 @@ public class Split extends AccessibilityService {
                             Path e = new Path();
                             e.moveTo(x, to);
                             s3.dispatchGesture(new GestureDescription.Builder()
-                                    .addStroke(slide.continueStroke(e, 0, 700, false)).build(), null, null);
+                                    .addStroke(slide.continueStroke(e, 0, endHold, false)).build(), null, null);
                         }
                     }, null);
                 }
@@ -402,7 +409,15 @@ public class Split extends AccessibilityService {
     private static void finish(Context c, Handler h, long wait) {
         h.postDelayed(() -> resize(c), wait);
         h.postDelayed(() -> resize(c), wait + 2200);
-        h.postDelayed(() -> { Music.playIfPaused(c); dump("fin"); saveLog(c); }, wait + 4000);
+        h.postDelayed(() -> { noThanks(); Music.playIfPaused(c); dump("fin"); saveLog(c); }, wait + 4000);
+    }
+
+    /** Ferme la proposition « Music Premium » de YouTube Music (bouton « Non, merci »). */
+    private static void noThanks() {
+        for (AccessibilityNodeInfo n : all()) {
+            String l = label(n).trim();
+            if (l.equalsIgnoreCase("Non, merci") || l.equalsIgnoreCase("No thanks")) { click(n); log("pub Premium fermée"); return; }
+        }
     }
 
     /** Fait glisser la barre du milieu (appui long puis glissement) pour laisser ¼ de l'écran à l'appli du haut. */
