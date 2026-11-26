@@ -232,7 +232,7 @@ public class Split extends AccessibilityService {
         final Context c = ctx.getApplicationContext();
         final Handler h = new Handler(Looper.getMainLooper());
         LOG.setLength(0);
-        log("Agenda écran partagé v5 · " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE);
+        log("Agenda écran partagé v6 · " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE);
         if (bubble && Bubble.canShow(c)) Bubble.show(c);
 
         // 1. Waze
@@ -338,10 +338,12 @@ public class Split extends AccessibilityService {
         float y = seen ? r.top + dm.density * 14 : dm.heightPixels * HANDLE[n];
         y = Math.min(y, dm.heightPixels - dm.density * 30);   // fenêtre garée en bas : on reprend sa poignée
         float to = dm.heightPixels - 1;                     // tout en bas, jusqu'au bord de l'écran
-        long hold = 1000 + 600L * n;
-        log("4. essai " + (n + 1) + (seen ? " (Waze vu " + r.toShortString() + ")" : " (position mesurée)") + " : appui " + hold + " ms sur " + (int) x + "," + (int) y + " → " + (int) to);
-        drag(s, x, y, to, hold, 1500, 1200);
-        h.postDelayed(() -> tryDrag(c, h, wazeUrl, n + 1), hold + 1500 + 1200 + 1800);
+        // 3 manières : lente avec appui long, jet rapide, puis reprise de la fenêtre déjà garée en bas
+        long hold = n == 1 ? 150 : 1000, move = n == 1 ? 300 : 1500, end = 1500;
+        log("4. essai " + (n + 1) + (n == 1 ? " (jet rapide)" : n == 2 ? " (reprise en bas)" : " (lent)") + (seen ? ", Waze " + r.toShortString() : ", position mesurée")
+                + " : appui " + hold + " ms sur " + (int) x + "," + (int) y + " → " + (int) to + " (écran " + dm.widthPixels + "×" + dm.heightPixels + ")");
+        drag(s, x, y, to, hold, move, end);
+        h.postDelayed(() -> tryDrag(c, h, wazeUrl, n + 1), hold + move + end + 1800);
     }
 
     /**
@@ -369,6 +371,7 @@ public class Split extends AccessibilityService {
                             if (s3 == null) return;
                             Path e = new Path();
                             e.moveTo(x, to);
+                            for (int k = 0; k < 3; k++) { e.lineTo(x + 6, to - 35); e.lineTo(x, to); }
                             s3.dispatchGesture(new GestureDescription.Builder()
                                     .addStroke(slide.continueStroke(e, 0, endHold, false)).build(), null, null);
                         }
