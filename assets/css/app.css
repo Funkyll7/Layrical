@@ -162,7 +162,7 @@ details.more>summary::-webkit-details-marker{display:none}details.more>summary::
 @media (max-width:999px){
  body::before{content:'';position:fixed;top:0;left:0;right:0;height:calc(54px + env(safe-area-inset-top,0px));background:var(--bg);border-bottom:1px solid var(--ln);z-index:5}
  main{padding-top:calc(66px + env(safe-area-inset-top,0px))}
- #sy{top:calc(17px + env(safe-area-inset-top,0px));left:16px;right:auto;max-width:calc(100% - 140px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:6}
+ #sy{top:calc(17px + env(safe-area-inset-top,0px));left:16px;right:auto;max-width:calc(100% - 180px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:6}
  .plb,.npb{top:calc(8px + env(safe-area-inset-top,0px));bottom:auto;left:auto;width:40px;height:40px;font-size:19px;box-shadow:none;z-index:6}
  .plb{right:62px}.npb{right:14px}
 }
@@ -219,3 +219,9 @@ details.more .cr:last-child{border-bottom:0}
 .nv-s{margin-bottom:8px}
 
 .warn-t{color:var(--or)!important}
+
+/* ---- Bouton 📍 Mes adresses ---- */
+.adb{position:fixed;right:16px;bottom:calc(142px + env(safe-area-inset-bottom,0px));width:48px;height:48px;border-radius:50%;border:1px solid var(--ln);background:var(--sf);font-size:22px;box-shadow:0 4px 14px rgba(0,0,0,.18);cursor:pointer;z-index:6}
+@media (min-width:1000px){.adb{right:388px}}body.wide .adb{right:28px}
+@media (max-width:999px){.adb{top:calc(8px + env(safe-area-inset-top,0px));bottom:auto;right:110px;width:40px;height:40px;font-size:19px;box-shadow:none}}
+.adl>div:last-child .cr{border-bottom:0}

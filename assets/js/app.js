@@ -82,6 +82,13 @@ const gmapsUrl=a=>'https://www.google.com/maps/dir/?api=1&destination='+encodeUR
 function contactsCard(){const L=(S.contacts||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'fr'));
  return '<h2>📍 Mes adresses</h2><div class="ctr">'+L.map(c=>'<button class="cc" onclick="goF(\''+c.id+'\')" aria-label="Aller chez '+esc(c.name)+'"><span>'+(c.emo||'📍')+'</span><b>'+esc(c.name)+'</b></button>').join('')
  +'<button class="cc add" onclick="ctF()" aria-label="Ajouter une adresse"><span>＋</span><b>Ajouter</b></button></div>'}
+const BankNorm=s=>String(s||'').normalize('NFD').replace(/\p{M}/gu,'').toLowerCase();
+// Fenêtre 📍 (barre du haut) : toutes les adresses, défilables, avec recherche
+function adrF(){const L=(S.contacts||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+ sheet('<h2 style="margin-top:0">📍 Mes adresses</h2>'+(L.length>5?'<input id="ad_q" placeholder="Chercher un nom ou une adresse…" oninput="adFilter(this.value)" style="margin:0 0 8px">':'')
+ +'<div class="card cl adl">'+(L.length?L.map(c=>'<div data-n="'+esc(BankNorm(c.name+' '+c.addr))+'">'+L1({ic:c.emo||'📍',t:esc(c.name),s:esc(c.addr),on:"goF('"+c.id+"')",act:'<span class="cr-n">Waze ›</span>'})+'</div>').join(''):'<div class="empty">Aucune adresse pour l’instant.</div>')+'</div>'
+ +'<button class="go" onclick="ctF()">＋ Ajouter une adresse</button>')}
+function adFilter(q){const w=BankNorm(q).split(/\s+/).filter(Boolean);document.querySelectorAll('.adl>[data-n]').forEach(b=>b.style.display=w.every(x=>b.dataset.n.includes(x))?'':'none')}
 function goF(id){const c=(S.contacts||[]).find(x=>x.id==id);if(!c)return;
  sheet('<h2 style="margin-top:0">'+(c.emo||'📍')+' '+esc(c.name)+'</h2><p style="margin:0 0 14px;color:var(--mu)">'+esc(c.addr)+'</p>'
  +'<a class="go waze" href="'+wazeUrl(c.addr)+'" target="_blank" rel="noopener" onclick="setTimeout(closeF,300)">🚗 Y aller avec Waze</a>'
@@ -96,8 +103,8 @@ function ctF(id){const c=id?(S.contacts||[]).find(x=>x.id==id):null,e=c&&c.emo||
  +'<button class="go" onclick="ctSave(\''+(id||'')+'\')">Enregistrer</button>')}
 function ctSave(id){const n=$('#c_n').value.trim(),a=$('#c_a').value.trim().replace(/\s*\n\s*/g,', '),t=$('#c_t').value.trim(),em=($('.ctemo button.on')||{}).textContent||'📍';
  if(!n||!a){alert('Indique un nom et une adresse.');return}S.contacts=S.contacts||[];const c=id?S.contacts.find(x=>x.id==id):null;
- if(c)Object.assign(c,{name:n,addr:a,tel:t,emo:em});else S.contacts.push({id:uid(),name:n,addr:a,tel:t,emo:em});save();closeF();render()}
-function ctDel(id){const c=(S.contacts||[]).find(x=>x.id==id);if(!c||!confirm('Supprimer l’adresse de « '+c.name+' » ?'))return;S.contacts=S.contacts.filter(x=>x.id!=id);save();closeF();render()}
+ if(c)Object.assign(c,{name:n,addr:a,tel:t,emo:em});else S.contacts.push({id:uid(),name:n,addr:a,tel:t,emo:em});save();render();adrF()}
+function ctDel(id){const c=(S.contacts||[]).find(x=>x.id==id);if(!c||!confirm('Supprimer l’adresse de « '+c.name+' » ?'))return;S.contacts=S.contacts.filter(x=>x.id!=id);save();render();adrF()}
 function todayCard(){const T=dayEvents(TD).filter(e=>!e.dn),D=dayEvents(dayAdd(TD,1)).filter(e=>!e.dn);
  const li=L=>L.map(e=>'<div class="tl"><span class="tl-e">'+e.e+'</span><b>'+esc(e.t)+'</b>'+(e.a?'<em class="'+(e.a<0?'neg':'pos')+'">'+(e.a>0?'+':'−')+eur(Math.abs(e.a))+'</em>':'')
   +(e.k=='rappel'?'<button class="x dn" aria-label="Marquer comme fait" title="C’est fait" onclick="doneIt(\''+e.id+'\',\''+(L===T?TD:dayAdd(TD,1))+'\')">✓</button>':'')+'</div>').join('');
@@ -116,7 +123,7 @@ function tilesHTML(){const r=salRec(),f=r?forecast():null,go=t=>"S.tab='"+t+"';r
  else T.push(tile('💼','Salaire',f?inj(f.D):'—',f?dl(f.nxt)+' · '+eur(r.amt):'le '+r.day+' du mois','',go('bu')));
  if(f&&f.B!==null)T.push(tile(f.def?'⚠️':'📉','Point bas',eur(f.low),f.def?'sous ta limite : ouvre Budget':dl(f.lowDay)+' · limite '+eur(f.floor),f.def?'bad':f.low<0?'warn':'ok',go('bu')));
  else T.push(tile('📉','Point bas','—','définis ton solde','',"balF()"));
- const p=pocheStats(),tot=p.bud+p.inc;T.push(tile('🎉','Argent de poche',eur(p.left),'sur '+eur(tot)+(p.sp?' · '+eur(p.sp)+' dépensés':''),p.left<0?'bad':'',"try{localStorage.setItem('bt','poche')}catch(e){};"+go('bu'),tot?100*(p.sp+p.rd)/tot:0));
+ const p=pocheStats(),tot=p.bud+p.inc;T.push(tile('🎉','Argent de poche',eur(p.left),(p.fix?'corrigé le '+dl(p.fix.date):'sur '+eur(tot))+(p.sp?' · '+eur(p.sp)+' dépensés':''),p.left<0?'bad':'',"try{localStorage.setItem('bt','poche')}catch(e){};"+go('bu'),tot?100*(p.sp+p.rd)/tot:0));
  let ep=0,iv=0;try{ep=pepTot();const st=invStats();iv=st.val==null?st.put:st.val}catch(e){}
  T.push(tile('🐷','Épargne',eur(ep+iv),'dont S&P 500 '+eur(iv),'',go('ep')));
  return '<div class="tiles">'+T.join('')+'</div>'}
@@ -151,7 +158,7 @@ function home(){
  +heroCard(inc,out)+tilesHTML()+todayCard()
  +(ren.length?'<h2>⏳ À surveiller</h2><div class="card cl">'+ren.map(o=>cRow({s:o.s,it:o.i})).join('')+'</div>':'')
  +'<h2>🗓️ À venir</h2><div class="card cl">'+(up.length?up.slice(0,6).map(cRow).join('')+(up.length>6?more('up','Voir les '+(up.length-6)+' suivants (30 jours)',up.slice(6).map(cRow).join('')):''):'<div class="empty">Rien de prévu. Appuie sur + pour ajouter.</div>')+'</div>'
- +contactsCard()+setRow()}
+ +setRow()}
 function agenda(){if(wideAg())return bigAgenda();
  const y=S.cy,m=S.cm,first=new Date(y,m,1,12),off=(first.getDay()+6)%7,dim=new Date(y,m+1,0).getDate();
  let g=['L','M','M','J','V','S','D'].map((d,k)=>'<div class="h'+(k>4?' we':'')+'">'+d+'</div>').join('');
@@ -481,17 +488,24 @@ function pocheCycle(){const r=salRec();if(r){const {last,nxt}=payAround(r);retur
 const inCyc=(d,c)=>d>=c.from&&(!c.to||d<c.to);
 function roundOf(a){const R=pk().round;if(!R||!R.on)return 0;const c=Math.ceil(a-1e-9)-a;return c<0.005?0:Math.round(c*(+R.x||1)*100)/100}
 const tsort=(a,b)=>(b.date+(b.time||''))>(a.date+(a.time||''))?1:-1;
-function pocheStats(){const P=pk(),c=pocheCycle(),L=P.tx.filter(t=>inCyc(t.date,c)).sort(tsort),sp=L.filter(t=>!t.in).reduce((a,t)=>a+(+t.amt||0),0),inc=L.filter(t=>t.in).reduce((a,t)=>a+(+t.amt||0),0),rd=L.reduce((a,t)=>a+(+t.round||0),0),bud=Math.max(0,planCalc().amt('poche')||0),last=P.tx.filter(t=>t.bal!=null).sort(tsort)[0];
- return {c,L,sp,rd,inc,bud,left:Math.round((bud+inc-sp-rd)*100)/100,rev:last?last.bal:null}}
+function pocheStats(){const P=pk(),c=pocheCycle(),all=P.tx.filter(t=>inCyc(t.date,c)).sort(tsort),bud=Math.max(0,planCalc().amt('poche')||0),last=P.tx.filter(t=>t.bal!=null).sort(tsort)[0];
+ // « Corriger » : ce qu'il y a vraiment sur Revolut à une date ; seuls les mouvements après comptent, jusqu'au prochain salaire
+ const fix=P.set&&inCyc(P.set.date,c)?P.set:null,after=t=>!fix||t.date>fix.date||(t.date==fix.date&&(+t.at||0)>(+fix.at||0)),L=all.filter(after);
+ const sp=L.filter(t=>!t.in).reduce((a,t)=>a+(+t.amt||0),0),inc=L.filter(t=>t.in).reduce((a,t)=>a+(+t.amt||0),0),rd=L.reduce((a,t)=>a+(+t.round||0),0),base=fix?+fix.amt:bud;
+ return {c,L:all,sp,rd,inc,bud:base,fix,left:Math.round((base+inc-sp-rd)*100)/100,rev:last?last.bal:null}}
+function pkSetF(){const s=pocheStats();sheet('<h2 style="margin-top:0">Corriger mon argent de poche</h2><label>Ce que j’ai vraiment sur Revolut maintenant (€)</label><input id="k_s" type="number" inputmode="decimal" step="0.01" value="'+(s.fix?s.left:'')+'" placeholder="Ex. 0">'
+ +'<small style="color:var(--mu);font-size:12.5px;display:block;margin-top:6px">L’appli repart de ce montant et y ajoute ou retire les paiements suivants, jusqu’au prochain salaire ('+(s.c.to?dl(s.c.to):'—')+'). Ensuite, elle reprend le montant prévu par ton budget.</small>'
+ +'<button class="go" onclick="pkSetSave()">Enregistrer</button>'+(pk().set?'<button class="go del" onclick="delete pk().set;save();closeF();render()">Revenir au calcul automatique</button>':''))}
+function pkSetSave(){const a=parseFloat($('#k_s').value);if(isNaN(a)){alert('Indique un montant (0 si tu n’as rien).');return}pk().set={amt:Math.round(a*100)/100,date:TD,at:Date.now()};save();closeF();render()}
 function pkRow(t){return L1({ic:t.in?'💶':'🎉',t:esc(t.label),s:dl(t.date)+(t.time?' · '+t.time:'')+(t.round?' · +'+eur(t.round)+' arrondi':'')+(t.auto?' · Revolut':''),a:(t.in?'+':'−')+eur(+t.amt),ac:t.in?'pos':'',on:"pkF('"+t.id+"')"})}
 function listenHTML(){if(!(window.AgendaNative&&AgendaNative.canListen))return '<small style="display:block;margin:6px 0">Dans l’appli Android, tes paiements Revolut s’ajoutent ici tout seuls.</small>';
  return AgendaNative.canListen()?'<small style="display:block;margin:6px 0"><span class="pos">✓ Lecture automatique des notifications Revolut et Caisse d’Épargne</span> · <a href="#" onclick="rawF();return false">voir ce qui a été lu</a></small>'
   :'<p class="neg" style="margin:8px 0 4px"><b>Lecture automatique désactivée.</b> Autorise l’appli à lire les notifications pour noter tes paiements tout seul.</p><button class="go" onclick="AgendaNative.openListenerSettings()">Autoriser la lecture des notifications</button>'}
 function pocheCard(){const s=pocheStats(),P=pk(),u=s.sp+s.rd,tot=s.bud+s.inc,pct=tot?Math.min(100,u/tot*100):(u?100:0);
  return '<h2 id="s-poche">🎉 Argent de poche</h2><div class="card pk">'
- +'<div class="pl-l"><b>Il te reste <span class="'+(s.left<0?'neg':'pos')+'">'+eur(s.left)+'</span> sur '+eur(s.bud)+(s.inc>0.005?' + '+eur(s.inc)+' reçus':'')+'</b><button class="pill" style="border:0;cursor:pointer" onclick="pkF()">+ Dépense</button></div>'
+ +'<div class="pl-l"><b>Il te reste <span class="'+(s.left<0?'neg':'pos')+'">'+eur(s.left)+'</span>'+(s.fix?'':' sur '+eur(s.bud))+(s.inc>0.005?' (dont '+eur(s.inc)+' reçus)':'')+'</b><span style="display:flex;gap:6px"><button class="pill" style="border:0;cursor:pointer" onclick="pkSetF()">Corriger</button><button class="pill" style="border:0;cursor:pointer" onclick="pkF()">+ Dépense</button></span></div>'
  +'<div class="pk-bar" title="'+Math.round(pct)+' % utilisé"><i style="width:'+pct.toFixed(1)+'%;background:'+(s.left<0?'var(--crit)':'var(--c1)')+'"></i></div>'
- +'<small style="display:block">Du '+dl(s.c.from)+(s.c.to?' au salaire du '+dl(s.c.to):'')+' : <b>'+eur(s.sp)+'</b> dépensés'+(s.rd>0.005?' + <b>'+eur(s.rd)+'</b> d’arrondis investis':'')+(s.inc>0.005?', <b class="pos">+'+eur(s.inc)+'</b> reçus':'')+'.'+(s.rev!=null?' Solde Revolut d’après la dernière notification : <b>'+eur(s.rev)+'</b>.':'')+'</small>'
+ +(s.fix?'<small style="display:block">Corrigé à '+eur(+s.fix.amt)+' le '+dl(s.fix.date)+'</small>':'')+'<small style="display:block">Du '+dl(s.c.from)+(s.c.to?' au salaire du '+dl(s.c.to):'')+' : <b>'+eur(s.sp)+'</b> dépensés'+(s.rd>0.005?' + <b>'+eur(s.rd)+'</b> d’arrondis investis':'')+(s.inc>0.005?', <b class="pos">+'+eur(s.inc)+'</b> reçus':'')+'.'+(s.rev!=null?' Solde Revolut d’après la dernière notification : <b>'+eur(s.rev)+'</b>.':'')+'</small>'
  +listenHTML()+'<div class="cl-in">'+(s.L.length?listMore('pk',s.L,6,pkRow):'<div class="empty">Aucune dépense d’argent de poche depuis le salaire.</div>')+'</div>'
  +more('pkset','⚙️ Arrondi Revolut','<label class="pk-r" style="margin-top:0"><input type="checkbox" '+(P.round.on?'checked':'')+' onchange="pk().round.on=this.checked;save();render()"> Arrondi à l’euro supérieur investi par Revolut</label>'
  +(P.round.on?'<label class="pk-r">Multiplicateur de l’arrondi <select onchange="pk().round.x=+this.value;save();render()">'+[1,2,5,10].map(x=>'<option value="'+x+'"'+((+P.round.x||1)==x?' selected':'')+'>×'+x+'</option>').join('')+'</select></label>':''))
@@ -499,7 +513,7 @@ function pocheCard(){const s=pocheStats(),P=pk(),u=s.sp+s.rd,tot=s.bud+s.inc,pct
 function pkF(id){const t=id?pk().tx.find(x=>x.id==id):null;sheet('<h2 style="margin-top:0">'+(t?'Modifier la dépense':'🎉 Dépense d’argent de poche')+'</h2><div class="seg" id="k_t"><button type="button" class="'+(t&&t.in?'':'on')+'" onclick="pkT(this)">Dépense</button><button type="button" class="'+(t&&t.in?'on':'')+'" onclick="pkT(this)">Argent reçu</button></div><label>Quoi</label><input id="k_l" value="'+esc(t?t.label:'')+'" placeholder="Ex. ciné, resto"><label>Montant (€)</label><input id="k_a" type="number" inputmode="decimal" step="0.01" value="'+(t?t.amt:'')+'"><label>Date</label><input id="k_d" type="date" value="'+(t?t.date:TD)+'"><button class="go" onclick="pkSave(\''+(id||'')+'\')">Enregistrer</button>'+(id?'<button class="go del" onclick="closeF();pkDel(\''+id+'\')">Supprimer</button>':''))}
 function pkT(b){[...b.parentNode.children].forEach(x=>x.classList.toggle('on',x==b))}
 function pkSave(id){const ob=$('#k_t button.on'),inn=!!(ob&&ob.textContent!='Dépense');const a=parseFloat($('#k_a').value),l=$('#k_l').value.trim()||'Dépense',d=$('#k_d').value||TD;if(!(a>0)){alert('Indique le montant.');return}const a2=Math.round(a*100)/100;
- const t=id?pk().tx.find(x=>x.id==id):null;if(t){t.round=inn?0:(t.amt!=a2||t.in?roundOf(a2):t.round);Object.assign(t,{label:l,amt:a2,date:d,in:inn?1:0})}else pk().tx.push({id:uid(),label:l,amt:a2,date:d,round:inn?0:roundOf(a2),in:inn?1:0});save();closeF();render()}
+ const t=id?pk().tx.find(x=>x.id==id):null;if(t){t.round=inn?0:(t.amt!=a2||t.in?roundOf(a2):t.round);Object.assign(t,{label:l,amt:a2,date:d,in:inn?1:0})}else pk().tx.push({id:uid(),label:l,amt:a2,date:d,round:inn?0:roundOf(a2),in:inn?1:0,at:Date.now()});save();closeF();render()}
 
 function pkDel(id){const t=pk().tx.find(x=>x.id==id);if(!t||!confirm('Supprimer « '+t.label+' » ('+eur(+t.amt)+') ?'))return;pk().tx=pk().tx.filter(x=>x.id!=id);save();render()}
 // Achats carte Caisse d'Épargne : déduits du budget principal (catégorie Imprévu) sauf si c'était prévu (courses, loyer…)
@@ -514,7 +528,7 @@ function cardDel(id){const c=(S.card||[]).find(x=>x.id==id);if(!c||!confirm('Sup
 // Paiements lus par l'appli Android dans les notifications (file d'attente côté téléphone)
 function nimport(){try{if(!window.AgendaNative||!AgendaNative.pending)return 0;const L=JSON.parse(AgendaNative.pending()||'[]');if(!L.length)return 0;let n=0;S.card=S.card||[];
  for(const p of L){const amt=Math.round(+p.amt*100)/100;if(!(amt>0))continue;
-  if(p.bank=='revolut'){if(pk().tx.some(x=>x.id==p.id))continue;const man=pk().tx.find(x=>!x.auto&&x.date==p.date&&Math.abs(+x.amt-amt)<0.005&&!x.in==!p.in);if(man){man.auto=1;if(p.bal!=null)man.bal=+p.bal;if(p.time&&!man.time)man.time=p.time;n++;continue}pk().tx.push({id:p.id,date:p.date,time:p.time,amt,round:p.in?0:roundOf(amt),in:p.in?1:0,label:p.label||(p.in?'Argent reçu':'Paiement Revolut'),bal:p.bal==null?null:+p.bal,auto:1});n++}
+  if(p.bank=='revolut'){if(pk().tx.some(x=>x.id==p.id))continue;const man=pk().tx.find(x=>!x.auto&&x.date==p.date&&Math.abs(+x.amt-amt)<0.005&&!x.in==!p.in);if(man){man.auto=1;if(p.bal!=null)man.bal=+p.bal;if(p.time&&!man.time)man.time=p.time;n++;continue}pk().tx.push({id:p.id,at:p.ts||Date.now(),date:p.date,time:p.time,amt,round:p.in?0:roundOf(amt),in:p.in?1:0,label:p.label||(p.in?'Argent reçu':'Paiement Revolut'),bal:p.bal==null?null:+p.bal,auto:1});n++}
   else if(p.bank=='ce'){if(S.card.some(x=>x.id==p.id))continue;if(S.tx.some(t=>!String(t.id).startsWith('cb')&&t.date==p.date&&Math.abs(Math.abs(+t.amt)-amt)<0.005&&(t.amt>0)==!!p.in))continue;const sr=salRec(),isSal=!!(p.in&&sr&&Math.abs(amt-sr.amt)<=sr.amt*0.15),c={id:p.id,date:p.date,time:p.time,amt,in:p.in?1:0,label:p.label||(p.in?(isSal?'Salaire (virement reçu)':'Virement reçu'):'Paiement carte'),st:isSal?'prevu':'imprevu',ct:p.ts||Date.now()};S.card.push(c);if(c.st!='prevu')S.tx.push(cardTx(c));n++}}
  if(n)save();AgendaNative.ack(JSON.stringify(L.map(p=>p.id)));if(n)render();return n}catch(e){console.warn('nimport',e);return 0}}
 function rawF(){let L=[];try{L=JSON.parse(AgendaNative.raw()||'[]')}catch(e){}
@@ -529,7 +543,7 @@ function widgetData(){const ln=d=>dayEvents(d).filter(e=>!e.dn).map(e=>e.e+' '+e
 // Widget : version courte (date, solde arrondi, 3 lignes max aujourd'hui, demain en une ligne, 3 chiffres)
 function widgetShort(){const e0=v=>(v<0?'−':'')+Math.abs(Math.round(v)).toLocaleString('fr-FR')+' €',f=salRec()?forecast():null,B=balNow(),p=pocheStats();
  const cl=t=>String(t).replace(/^[^\p{L}\p{N}]+/u,'').trim(),ln=d=>dayEvents(d).filter(e=>!e.dn&&e.k!='ho').map(e=>e.e+'  '+cl(e.t)),T=ln(TD),D=ln(dayAdd(TD,1)),dd=P(TD).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
- const st=[];if(p.bud||p.sp)st.push('Poche  '+e0(p.left));if(f)st.push('Salaire  '+(f.D<=0?'auj.':'J−'+f.D));if(f&&f.B!==null)st.push((f.def?'⚠ ':'')+'Point bas  '+e0(f.low));
+ const st=[];if(p.bud||p.sp||p.fix)st.push('Poche  '+e0(p.left));if(f)st.push('Salaire  '+(f.D<=0?'auj.':'J−'+f.D));if(f&&f.B!==null)st.push((f.def?'⚠ ':'')+'Point bas  '+e0(f.low));
  return {d:dd.charAt(0).toUpperCase()+dd.slice(1),bal:B===null?'':e0(B),neg:B!==null&&B<0,t:T.slice(0,3),tx:Math.max(0,T.length-3),tm:D.length?cl(D[0].replace(/^\S+\s+/,''))+(D.length>1?' +'+(D.length-1):''):'',st:st.join('\n'),warn:!!(f&&f.def)}}
 function wpush(){try{if(window.AgendaNative)AgendaNative.update(JSON.stringify(widgetData()))}catch(e){}clearTimeout(wpush.t);wpush.t=setTimeout(nsched,400)}
 // Notifications programmées dans le téléphone par l'appli Android (8 jours d'avance, recalculées à chaque ouverture/synchro)
