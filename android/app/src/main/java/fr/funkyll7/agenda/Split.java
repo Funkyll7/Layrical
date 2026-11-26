@@ -232,7 +232,7 @@ public class Split extends AccessibilityService {
         final Context c = ctx.getApplicationContext();
         final Handler h = new Handler(Looper.getMainLooper());
         LOG.setLength(0);
-        log("Agenda écran partagé v9 · " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE);
+        log("Agenda écran partagé v10 · " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE);
         if (bubble && Bubble.canShow(c)) Bubble.show(c);
 
         // 1. Waze
@@ -254,10 +254,10 @@ public class Split extends AccessibilityService {
                         if (Music.widgetPlaysList(c)) Music.playList(c); else Music.openAndPlay(c);
                         log("3. YouTube Music ouvert");
                         // 4. Waze glissé tout en bas
-                        h.postDelayed(() -> dragWazeDown(c, h, wazeUrl), 3500);
-                    }, 1500);
-                }, 1300);
-            }, 4500);
+                        h.postDelayed(() -> dragWazeDown(c, h, wazeUrl, 0), 1500);
+                    }, 900);
+                }, 900);
+            }, 2000);
         }, () -> { log("1. Waze n'est pas apparu"); fail(c, wazeUrl); });
     }
 
@@ -283,13 +283,19 @@ public class Split extends AccessibilityService {
      * En ouvrant YouTube Music, Honor réduit Waze en bulle (à droite de l'écran) :
      * on touche la bulle pour le remettre en fenêtre flottante, puis on le glisse en bas.
      */
-    private static void dragWazeDown(Context c, Handler h, String wazeUrl) {
-        dump("Waze flottant + YouTube Music");
+    private static void dragWazeDown(Context c, Handler h, String wazeUrl, int wait) {
+        // on attend (≤ 3 s) que YouTube Music soit à l'écran, puis 0,7 s que Honor ait réduit Waze en bulle
+        if (wait >= 0) {
+            if (!windowOf(YTM, new Rect()) && wait < 10) { h.postDelayed(() -> dragWazeDown(c, h, wazeUrl, wait + 1), 300); return; }
+            h.postDelayed(() -> dragWazeDown(c, h, wazeUrl, -1), 700);
+            return;
+        }
         Rect b = wazeBubble();
+        dump("Waze flottant + YouTube Music");
         if (b != null) {
             log("4. Waze réduit en bulle " + b.toShortString() + " → on la touche");
             tap(Math.min(b.centerX(), screenW() - 20), b.centerY());
-            h.postDelayed(() -> { dump("Waze sorti de la bulle"); tryDrag(c, h, wazeUrl, 0); }, 1500);
+            h.postDelayed(() -> { dump("Waze sorti de la bulle"); tryDrag(c, h, wazeUrl, 0); }, 900);
         } else tryDrag(c, h, wazeUrl, 0);
     }
 
@@ -337,12 +343,13 @@ public class Split extends AccessibilityService {
         float x = seen ? r.centerX() : dm.widthPixels / 2f;
         float y = seen ? r.top + dm.density * 14 : dm.heightPixels * HANDLE[n];
         y = Math.min(y, dm.heightPixels - dm.density * 30);
+        // réglage qui a marché : barre à 5 px du bas, doigt immobile 1,6 s
         float to = dm.heightPixels - (n == 2 ? 1 : 5);
-        long end = n == 0 ? 1000 : 1600;
+        long end = n == 1 ? 2200 : 1600;
         log("4. essai " + (n + 1) + (seen ? ", Waze " + r.toShortString() : ", position mesurée")
                 + " : barre " + (int) x + "," + (int) y + " → " + (int) to + ", immobile " + end + " ms (écran " + dm.widthPixels + "×" + dm.heightPixels + ")");
         filmed(s, x, y, to, end);
-        h.postDelayed(() -> tryDrag(c, h, wazeUrl, n + 1), 120 + 1000 + end + 2500);
+        h.postDelayed(() -> tryDrag(c, h, wazeUrl, n + 1), 120 + 1000 + end + 1200);
     }
 
     /**
@@ -455,8 +462,8 @@ public class Split extends AccessibilityService {
     /** 5. barre du milieu à ¼, puis relance de la lecture si YouTube Music s'est mis en pause. */
     private static void finish(Context c, Handler h, long wait) {
         h.postDelayed(() -> resize(c), wait);
-        h.postDelayed(() -> resize(c), wait + 2200);
-        h.postDelayed(() -> { noThanks(); Music.playIfPaused(c); dump("fin"); saveLog(c); }, wait + 4000);
+        h.postDelayed(() -> resize(c), wait + 1500);
+        h.postDelayed(() -> { noThanks(); Music.playIfPaused(c); dump("fin"); saveLog(c); }, wait + 2500);
     }
 
     /** Ferme la proposition « Music Premium » de YouTube Music (bouton « Non, merci »). */
