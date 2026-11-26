@@ -232,7 +232,7 @@ public class Split extends AccessibilityService {
         final Context c = ctx.getApplicationContext();
         final Handler h = new Handler(Looper.getMainLooper());
         LOG.setLength(0);
-        log("Agenda écran partagé v6 · " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE);
+        log("Agenda écran partagé v7 · " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE);
         if (bubble && Bubble.canShow(c)) Bubble.show(c);
 
         // 1. Waze
@@ -337,7 +337,10 @@ public class Split extends AccessibilityService {
         float x = seen ? r.centerX() : dm.widthPixels / 2f;
         float y = seen ? r.top + dm.density * 14 : dm.heightPixels * HANDLE[n];
         y = Math.min(y, dm.heightPixels - dm.density * 30);   // fenêtre garée en bas : on reprend sa poignée
-        float to = dm.heightPixels - 1;                     // tout en bas, jusqu'au bord de l'écran
+        // Dans la vidéo, la fenêtre doit disparaître ENTIÈREMENT sous l'écran (barre du haut comprise)
+        // avant que « Relâcher pour ajouter une application » apparaisse : le doigt virtuel va donc
+        // au-delà du bord (Android n'interdit que les coordonnées négatives).
+        float to = dm.heightPixels + 300 + 150 * n;
         // 3 manières : lente avec appui long, jet rapide, puis reprise de la fenêtre déjà garée en bas
         long hold = n == 1 ? 150 : 1000, move = n == 1 ? 300 : 1500, end = 1500;
         log("4. essai " + (n + 1) + (n == 1 ? " (jet rapide)" : n == 2 ? " (reprise en bas)" : " (lent)") + (seen ? ", Waze " + r.toShortString() : ", position mesurée")
@@ -372,9 +375,14 @@ public class Split extends AccessibilityService {
                             Path e = new Path();
                             e.moveTo(x, to);
                             for (int k = 0; k < 3; k++) { e.lineTo(x + 6, to - 35); e.lineTo(x, to); }
-                            s3.dispatchGesture(new GestureDescription.Builder()
-                                    .addStroke(slide.continueStroke(e, 0, endHold, false)).build(), null, null);
+                            boolean ok = s3.dispatchGesture(new GestureDescription.Builder()
+                                    .addStroke(slide.continueStroke(e, 0, endHold, false)).build(), new GestureResultCallback() {
+                                @Override public void onCompleted(GestureDescription g3) { log("   geste terminé"); }
+                                @Override public void onCancelled(GestureDescription g3) { log("   fin du geste annulée"); }
+                            }, null);
+                            if (!ok) log("   fin du geste refusée");
                         }
+                        @Override public void onCancelled(GestureDescription g2) { log("   glissement annulé"); }
                     }, null);
                 }
             }, null);
