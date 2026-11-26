@@ -198,3 +198,23 @@ details.more .cr:last-child{border-bottom:0}
 .cr-n.warn{color:#7a4a00;background:#ffe7b8}
 .cl-in .cr:last-child{border-bottom:0}.cl-in{margin-top:4px}
 .cr[role=button]{cursor:pointer}.cr .x{flex:none}
+
+/* ---- Agenda téléphone : emojis dans le calendrier + planning par jour ---- */
+.agh{display:flex;align-items:center;justify-content:space-between;gap:10px}.agh h1{margin-bottom:8px}
+.cal2{gap:3px}.cal2 .h.we{color:var(--ac)}
+.cal2 button{aspect-ratio:auto;height:50px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:6px;gap:2px;border-radius:12px}
+.cal2 button span{font-size:14px;line-height:1}.cal2 button.we span{color:var(--ac)}.cal2 button.past{opacity:.45}
+.cal2 button i{position:static;transform:none;display:flex;flex-wrap:nowrap;white-space:nowrap;overflow:hidden;max-width:100%;align-items:center;gap:0;font-style:normal;font-size:13px;line-height:1.3;letter-spacing:-2px}
+.cal2 button i u{text-decoration:none;font-size:10px;font-weight:700;color:var(--mu);letter-spacing:0;margin-left:3px}
+.cal2 button.has{background:var(--sf)}.cal2 button.td{outline:2px solid var(--ac);outline-offset:-2px}
+.cal2 button.sel{background:var(--ac);opacity:1}.cal2 button.sel span,.cal2 button.sel u{color:#fff}
+.pd{display:flex;align-items:baseline;gap:8px;margin:14px 2px 6px}.pd b{font-size:15px}.pd small{color:var(--mu);font-size:12.5px}.pd.first{margin-top:6px}
+
+/* ---- Budget : sous-onglets ---- */
+.bt-tabs{display:flex;gap:4px;background:var(--sf);border:1px solid var(--ln);border-radius:14px;padding:4px;margin:0 0 10px;position:sticky;top:calc(58px + env(safe-area-inset-top,0px));z-index:4}
+@media (min-width:1000px){.bt-tabs{top:8px}}
+.bt-tabs button{flex:1;border:0;background:none;color:var(--mu);font:inherit;font-size:14px;font-weight:700;padding:9px 4px;border-radius:10px;cursor:pointer;min-height:40px}
+.bt-tabs button.on{background:var(--ac);color:#fff}
+.nv-s{margin-bottom:8px}
+
+.warn-t{color:var(--or)!important}

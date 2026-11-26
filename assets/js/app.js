@@ -45,9 +45,9 @@ const on=s=>S.items.filter(i=>occ(i,s));
 function pill(n){return '<span class="pill'+(n<0?' d':n<=30?' d':n<=90?' w':'')+'">'+(n<0?'Expiré':inj(n))+'</span>'}
 const isDone=(it,s)=>!!(s&&it.dn&&it.dn.includes(s));
 function doneIt(id,s){const it=S.items.find(x=>x.id==id);if(!it||!s)return;const was=isDone(it,s);it.dn=(it.dn||[]).filter(d=>d!=s&&d>=dayAdd(TD,-400));if(!was)it.dn.push(s);if(!it.dn.length)delete it.dn;save();render()}
-function itemRow(it,s){const t=TY[it.type],dn=isDone(it,s),inst=isInst(it),a=inst?(s?instAmt(it,s):+it.amt):it.amt===''||it.amt==null?null:+it.amt;
+function itemRow(it,s,nd){const t=TY[it.type],dn=isDone(it,s),inst=isInst(it),a=inst?(s?instAmt(it,s):+it.amt):it.amt===''||it.amt==null?null:+it.amt;
  const rep=it.rep&&it.rep!='none'&&it.type!='anniv'?(RP[it.rep]||'').toLowerCase():'';
- const sub=[s?dRel(s):(it.type=='travail'&&!it.date?'sans date':''),it.time,rep,t[0]].filter(Boolean).join(' · ');
+ const sub=[s&&!nd?dRel(s):(it.type=='travail'&&!it.date?'sans date':''),it.time,rep,t[0]].filter(Boolean).join(' · ');
  const c=s&&!dn?chipFor(s,it.type=='renouv'):null;
  return L1({cls:dn?'done':'',ic:t[2],t:esc(it.title),s:sub+(dn?' · ✓ fait':''),a:a===null||isNaN(a)?'':a===0&&it.type=='renouv'?'gratuit':a?'−'+eur(a)+(inst||it.type=='abo'?'':''):'',chip:c?c[0]:'',cc:c?c[1]:'',on:"openEdit('it','"+it.id+"')",
   act:it.type=='rappel'&&s?'<button class="x dn'+(dn?' on':'')+'" aria-label="'+(dn?'Marquer comme pas fait':'Marquer comme fait')+'" onclick="'+stop("doneIt('"+it.id+"','"+s+"')")+'">✓</button>':''})}
@@ -116,7 +116,7 @@ function tilesHTML(){const r=salRec(),f=r?forecast():null,go=t=>"S.tab='"+t+"';r
  else T.push(tile('💼','Salaire',f?inj(f.D):'—',f?dl(f.nxt)+' · '+eur(r.amt):'le '+r.day+' du mois','',go('bu')));
  if(f&&f.B!==null)T.push(tile(f.def?'⚠️':'📉','Point bas',eur(f.low),f.def?'sous ta limite : ouvre Budget':dl(f.lowDay)+' · limite '+eur(f.floor),f.def?'bad':f.low<0?'warn':'ok',go('bu')));
  else T.push(tile('📉','Point bas','—','définis ton solde','',"balF()"));
- const p=pocheStats(),tot=p.bud+p.inc;T.push(tile('🎉','Argent de poche',eur(p.left),'sur '+eur(tot)+(p.sp?' · '+eur(p.sp)+' dépensés':''),p.left<0?'bad':'',go('bu'),tot?100*(p.sp+p.rd)/tot:0));
+ const p=pocheStats(),tot=p.bud+p.inc;T.push(tile('🎉','Argent de poche',eur(p.left),'sur '+eur(tot)+(p.sp?' · '+eur(p.sp)+' dépensés':''),p.left<0?'bad':'',"try{localStorage.setItem('bt','poche')}catch(e){};"+go('bu'),tot?100*(p.sp+p.rd)/tot:0));
  let ep=0,iv=0;try{ep=pepTot();const st=invStats();iv=st.val==null?st.put:st.val}catch(e){}
  T.push(tile('🐷','Épargne',eur(ep+iv),'dont S&P 500 '+eur(iv),'',go('ep')));
  return '<div class="tiles">'+T.join('')+'</div>'}
@@ -154,13 +154,19 @@ function home(){
  +contactsCard()+setRow()}
 function agenda(){if(wideAg())return bigAgenda();
  const y=S.cy,m=S.cm,first=new Date(y,m,1,12),off=(first.getDay()+6)%7,dim=new Date(y,m+1,0).getDate();
- let g=['L','M','M','J','V','S','D'].map(d=>'<div class="h">'+d+'</div>').join('');
+ let g=['L','M','M','J','V','S','D'].map((d,k)=>'<div class="h'+(k>4?' we':'')+'">'+d+'</div>').join('');
  for(let i=0;i<off;i++)g+='<div></div>';
- for(let d=1;d<=dim;d++){const s=y+'-'+pad(m+1)+'-'+pad(d),ev=on(s),h=holName(s);
-  g+='<button class="'+(s==TD?'td ':'')+(s==S.sel?'sel ':'')+(h?'ho':'')+'" onclick="S.sel=\''+s+'\';render()">'+d+'<i>'+ev.slice(0,3).map(e=>'<s style="background:'+TY[e.type][1]+'"></s>').join('')+(dueOn(s).length?'<s style="background:#e0751f"></s>':'')+'</i></button>'}
- const ev=on(S.sel),h=holName(S.sel),dd=dueOn(S.sel);
- return '<h1>Agenda</h1><div class="nv"><button onclick="mv(\'c\',-1)" aria-label="Mois précédent">‹</button><b>'+MO[m]+' '+y+'</b><button onclick="mv(\'c\',1)" aria-label="Mois suivant">›</button></div><div class="card" style="padding:10px"><div class="cal">'+g+'</div></div>'
- +'<h2>'+P(S.sel).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+'</h2><div class="card cl">'+(h?holRow(S.sel,h):'')+ev.map(i=>itemRow(i,S.sel)).join('')+dd.map(x=>debtRow(x)).join('')+(!h&&!ev.length&&!dd.length?'<div class="empty">Rien ce jour-là.</div>':'')+'</div>'}
+ for(let d=1;d<=dim;d++){const s=y+'-'+pad(m+1)+'-'+pad(d),em=dayEvents(s).filter(e=>!e.dn).map(e=>e.e),wk=(off+d-1)%7>4;
+  g+='<button class="'+(s==TD?'td ':'')+(s==S.sel?'sel ':'')+(s<TD?'past ':'')+(wk?'we ':'')+(em.length?'has':'')+'" onclick="S.sel=\''+s+'\';render()" aria-label="'+P(s).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+(em.length?', '+em.length+' élément'+(em.length>1?'s':''):'')+'"><span>'+d+'</span><i>'+em.slice(0,2).join('')+(em.length>2?'<u>+'+(em.length-2)+'</u>':'')+'</i></button>'}
+ // planning : le jour choisi puis les 14 jours suivants qui ont quelque chose
+ let pl='';const st=S.sel||TD;
+ for(let k=0;k<15;k++){const s=dayAdd(st,k),E=dayEvents(s);if(k&&!E.length)continue;
+  const lab=s==TD?'Aujourd’hui':s==dayAdd(TD,1)?'Demain':s==dayAdd(TD,-1)?'Hier':'',full=P(s).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  pl+='<div class="pd'+(k==0?' first':'')+'"><b>'+(lab||full.charAt(0).toUpperCase()+full.slice(1))+'</b>'+(lab?'<small>'+full+'</small>':'')+'</div><div class="card cl">'+(E.length?E.map(e=>{if(e.k=='ho')return holRow(s,e.t);if(e.k=='debt'){const d=S.debts.find(x=>x.id==e.id);return d?debtRow(d):''}if(e.k=='rec'||e.k=='tx')return L1({ic:e.e,t:esc(e.t),s:e.k=='rec'?'chaque mois':((S.tx.find(x=>x.id==e.id)||{}).cat||'mouvement'),a:(e.a>0?'+':'−')+eur(Math.abs(e.a)),ac:e.a>0?'pos':'',on:"openEdit('"+e.k+"','"+e.id+"')"});const it=S.items.find(x=>x.id==e.id);return it?itemRow(it,s,1):''}).join(''):'<div class="empty" style="padding:10px 0">Rien ce jour-là.</div>')+'</div>'}
+ const cur=y==+TD.slice(0,4)&&m==+TD.slice(5,7)-1&&S.sel==TD;
+ return '<div class="agh"><h1>Agenda</h1>'+(cur?'':'<button class="mini" onclick="S.sel=TD;S.cy=+TD.slice(0,4);S.cm=+TD.slice(5,7)-1;render()">Aujourd’hui</button>')+'</div>'
+ +'<div class="nv"><button onclick="mv(\'c\',-1)" aria-label="Mois précédent">‹</button><b>'+MO[m]+' '+y+'</b><button onclick="mv(\'c\',1)" aria-label="Mois suivant">›</button></div><div class="card" style="padding:8px 6px"><div class="cal cal2">'+g+'</div></div>'
+ +'<h2>🗓️ Planning</h2>'+pl}
 function quotMonthly(){return S.items.filter(i=>i.type=='travail'&&+i.amt>0&&repMonths(i.rep)).reduce((a,i)=>a+(+i.amt)/repMonths(i.rep),0)}
 function quotList(){const l=S.items.filter(i=>i.type=='travail').sort((a,b)=>a.title.localeCompare(b.title));return l.length?sect('🛒 Quotidien · '+eur(quotMonthly())+' / mois',l.map(i=>itemRow(i,i.date?next(i):undefined)).join(''),'s-quot'):''}
 function aboList(){const l=S.items.filter(i=>i.type=='abo').sort((a,b)=>(+b.amt||0)/(repMonths(b.rep)||12)-(+a.amt||0)/(repMonths(a.rep)||12));if(!l.length)return '';
@@ -170,16 +176,22 @@ function budget(){
  const y=S.by,m=S.bm,tx=monthAll(y,m).sort((a,b)=>a.date<b.date?1:-1),inc=tx.filter(t=>t.amt>0).reduce((a,t)=>a+t.amt,0),out=-tx.filter(t=>t.amt<0).reduce((a,t)=>a+t.amt,0);
  const bc={};tx.filter(t=>t.amt<0).forEach(t=>bc[t.cat]=(bc[t.cat]||0)-t.amt);
  CATS.forEach(c=>{if(S.bud[c]&&!(c in bc))bc[c]=0});const cats=Object.entries(bc).sort((a,b)=>b[1]-a[1]);
- const n=balNow(),p=pocheStats(),bil=inc-out;
- return '<h1>Budget</h1><div class="nv"><button onclick="mv(\'b\',-1)" aria-label="Mois précédent">‹</button><b>'+MO[m]+' '+y+'</b><button onclick="mv(\'b\',1)" aria-label="Mois suivant">›</button></div>'
+ const n=balNow(),p=pocheStats(),bil=inc-out;let bt='sum';try{bt=localStorage.getItem('bt')||'sum'}catch(e){}
+ const T=[['sum','Résumé'],['poche','Poche'],['fix','Fixes'],['mv','Mouvements']];
+ const head='<h1>Budget</h1><div class="bt-tabs" role="tablist">'+T.map(t=>'<button role="tab" class="'+(bt==t[0]?'on':'')+'" onclick="btSet(\''+t[0]+'\')">'+t[1]+'</button>').join('')+'</div>';
+ const nav='<div class="nv nv-s"><button onclick="mv(\'b\',-1)" aria-label="Mois précédent">‹</button><b>'+MO[m]+' '+y+'</b><button onclick="mv(\'b\',1)" aria-label="Mois suivant">›</button></div>';
+ if(bt=='poche')return head+pocheCard()+cardCard();
+ if(bt=='fix')return head+'<p class="hint" style="margin-top:4px">Par mois : abonnements <b>'+eur(subMonthly())+'</b> · quotidien <b>'+eur(quotMonthly())+'</b> · crédits <b>'+eur(credMonthly())+'</b></p>'+recList()+quotList()+aboList();
+ if(bt=='mv')return head+nav+sect('🧾 Mouvements de '+MO[m]+' · '+tx.length,tx.length?tx.map(txRow).join(''):'<div class="empty">Aucun mouvement. Appuie sur + pour en ajouter.</div>');
+ const top=cats.slice(0,4);
+ return head+nav
  +heroBox('Bilan de '+MO[m],(bil>=0?'+':'')+eur(bil),bil>=0?'pos':'neg',[['Reçu',eur(inc)],['Dépensé',eur(out)],['Solde',n===null?'—':eur(n),n!==null&&n<0?'neg':'']],'balF()')
- +'<div class="tiles">'+tile('🎉','Argent de poche',eur(p.left),'reste sur '+eur(p.bud+p.inc),p.left<0?'bad':'',goSec('s-poche'),(p.bud+p.inc)?100*(p.sp+p.rd)/(p.bud+p.inc):0)
-  +tile('🔁','Abonnements',eur(subMonthly()),'par mois','',goSec('s-abo'))+tile('🏦','Crédits',eur(credMonthly()),'par mois','',"S.tab='de';render();scrollTo(0,0)")+tile('🛒','Quotidien',eur(quotMonthly()),'par mois','',goSec('s-quot'))+'</div>'
- +fcCard(true)+pocheCard()+cardCard()
- +(cats.length?'<h2>📂 Dépenses par catégorie</h2><div class="card" style="padding:6px 14px 10px">'+cats.map(catBar).join('')+'<button class="lnk" onclick="cap()">Fixer des plafonds par catégorie</button></div>':'')
- +'<h2>📊 Graphiques</h2><div class="card cl">'+more('charts','Voir les graphiques du mois et des mois précédents',budgetCharts())+'</div>'
- +recList()+quotList()+aboList()
- +sect('🧾 Mouvements de '+MO[m],tx.length?listMore('tx',tx,8,txRow):'<div class="empty">Aucun mouvement. Appuie sur + pour en ajouter.</div>')}
+ +'<div class="tiles">'+tile('🎉','Argent de poche',eur(p.left),'reste sur '+eur(p.bud+p.inc),p.left<0?'bad':'',"btSet('poche')",(p.bud+p.inc)?100*(p.sp+p.rd)/(p.bud+p.inc):0)
+  +tile('🔁','Fixes / mois',eur(subMonthly()+quotMonthly()),'abonnements + quotidien','',"btSet('fix')")+'</div>'
+ +fcCard(true)
+ +(top.length?'<h2>📂 Où part l’argent</h2><div class="card" style="padding:6px 14px 8px">'+top.map(catBar).join('')+(cats.length>4?more('cats','Voir les '+(cats.length-4)+' autres catégories',cats.slice(4).map(catBar).join('')):'')+'<button class="lnk" onclick="cap()">Fixer des plafonds</button> · <button class="lnk" onclick="btSet(\'mv\')">Voir les mouvements</button></div>':'')
+ +'<div class="card cl" style="margin-top:10px">'+more('charts','📊 Graphiques du mois et des mois précédents',budgetCharts())+'</div>'}
+function btSet(t){try{localStorage.setItem('bt',t)}catch(e){}render();scrollTo(0,0)}
 // Coûts de renouvellement connus (vérifiés en novembre 2026)
 const COUTS=[[/passeport/i,86,'Timbre fiscal pour un adulte (service-public.gouv.fr)'],[/identit|\bcni\b/i,0,'Gratuit en rendant l’ancienne carte · 25 € si elle est perdue ou volée'],[/permis/i,0,'Démarche en ligne gratuite (ANTS) · seule la photo d’identité est à payer'],[/bours/i,0,'Renouvellement automatique et gratuit (BoursoBank)'],[/revolut/i,13.99,'Au plus 6 € de remplacement + 7,99 € de livraison (offre Standard) ; souvent gratuit à l’échéance, à vérifier dans l’appli Revolut'],[/pluxee|swile|edenred|ticket\s*resto/i,0,'Carte fournie par ton employeur, en principe sans frais pour toi (à confirmer auprès de lui)']];
 const coutDe=t=>{const c=COUTS.find(x=>x[0].test(t||''));return c?{a:c[1],n:c[2]}:null};
@@ -381,7 +393,8 @@ function fcCard(compact){const r=salRec();
   +(f.cutE>0.005?'<li>utilise <b>'+eur(f.cutE)+'</b> de ton épargne</li>':'')+'</ul>'
   +(f.rest>0.005?'<p class="neg"><b>Même ainsi, il manquerait '+eur(f.rest)+'</b> : décale une dépense ou un paiement.</p>':'')}
  let det=(f.B!==null?fcChart(f):'')+loanHTML(f)+'<small>Compte ton solde, tes revenus et dépenses fixes, crédits, abonnements, dépenses à venir, et ton budget du quotidien et réparti sur les jours ; l’argent de poche sort en une fois au salaire.</small>';
- body+=compact?more('fc','Voir le détail : courbe, dépenses, crédits',det):det;if(f.B!==null&&f.D<=1)body+='<button class="go" style="margin-top:8px" onclick="savF()">🐷 C’est la veille du salaire : mettre de côté</button>';
+ if(compact&&f.B!==null){const mini='<div class="hstats" style="border:0;padding-top:2px"><span><small>Prochain salaire</small><b>'+inj(f.D)+'</b></span><span><small>Point bas</small><b class="'+(f.def?'neg':f.low<0?'warn-t':'')+'">'+eur(f.low)+'</b></span><span><small>La veille</small><b class="'+(f.before<0?'neg':'pos')+'">'+eur(f.before)+'</b></span></div>'+(f.def?'<p class="neg" style="margin:8px 0 0"><b>⚠️ Sous ta limite de '+lim+' le '+dl(f.lowDay)+'</b> : ouvre le détail pour savoir quoi faire.</p>':'');body=mini+more('fc','Voir le détail : explications, courbe, crédits',body+det)}
+ else body+=compact?more('fc','Voir le détail : courbe, dépenses, crédits',det):det;if(f.B!==null&&f.D<=1)body+='<button class="go" style="margin-top:8px" onclick="savF()">🐷 C’est la veille du salaire : mettre de côté</button>';
  return '<div class="card fc">'+hd+body+'</div>'}
 // ---------- S&P 500 : cours mis à jour chaque jour de bourse dans marche.json ----------
 let MK=null;
@@ -510,9 +523,14 @@ function rawF(){let L=[];try{L=JSON.parse(AgendaNative.raw()||'[]')}catch(e){}
 
 // Résumé pour le widget de l'appli Android (fourni par l'appli via window.AgendaNative)
 function widgetData(){const ln=d=>dayEvents(d).filter(e=>!e.dn).map(e=>e.e+' '+e.t+(e.a?' · '+eur(e.a):'')),f=forecast(),B=balNow(),n=new Date();
- return {date:dl(TD),today:ln(TD),tomorrow:ln(dayAdd(TD,1)),bal:B===null?null:eur(B),neg:B!==null&&B<0,
+ return {w:widgetShort(),date:dl(TD),today:ln(TD),tomorrow:ln(dayAdd(TD,1)),bal:B===null?null:eur(B),neg:B!==null&&B<0,
   sal:f?dl(f.nxt)+' ('+inj(f.D).toLowerCase()+')':null,eve:f&&f.B!==null?eur(f.before):null,
   low:f&&f.B!==null&&f.low<0?eur(f.low)+' le '+dl(f.lowDay):null,poche:(()=>{const p=pocheStats();return p.bud||p.sp?eur(p.left)+' sur '+eur(p.bud):null})(),warn:!!(f&&f.def>0.005),at:pad(n.getHours())+':'+pad(n.getMinutes())}}
+// Widget : version courte (date, solde arrondi, 3 lignes max aujourd'hui, demain en une ligne, 3 chiffres)
+function widgetShort(){const e0=v=>(v<0?'−':'')+Math.abs(Math.round(v)).toLocaleString('fr-FR')+' €',f=salRec()?forecast():null,B=balNow(),p=pocheStats();
+ const ln=d=>dayEvents(d).filter(e=>!e.dn).map(e=>e.e+' '+e.t),T=ln(TD),D=ln(dayAdd(TD,1)),dd=P(TD).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+ const st=[];if(p.bud||p.sp)st.push('🎉 '+e0(p.left));if(f)st.push('💼 '+(f.D<=0?'auj.':f.D+' j'));if(f&&f.B!==null)st.push((f.def?'⚠️ ':'📉 ')+e0(f.low));
+ return {d:dd.charAt(0).toUpperCase()+dd.slice(1),bal:B===null?'':e0(B),neg:B!==null&&B<0,t:T.slice(0,3),tx:Math.max(0,T.length-3),tm:D.length?D[0]+(D.length>1?' +'+(D.length-1):''):'',st:st.join('   '),warn:!!(f&&f.def)}}
 function wpush(){try{if(window.AgendaNative)AgendaNative.update(JSON.stringify(widgetData()))}catch(e){}clearTimeout(wpush.t);wpush.t=setTimeout(nsched,400)}
 // Notifications programmées dans le téléphone par l'appli Android (8 jours d'avance, recalculées à chaque ouverture/synchro)
 async function nsched(){try{if(!window.AgendaNative||!AgendaNative.schedule)return;const m=await import(new URL('scripts/rappels-calc.mjs',document.baseURI).href);const L=m.plan(snap(),TD,8).map(x=>({at:x.at,title:x.title,body:x.body,tag:x.tag}));AgendaNative.schedule(JSON.stringify(L));return L.length}catch(e){console.warn("nsched",e)}}

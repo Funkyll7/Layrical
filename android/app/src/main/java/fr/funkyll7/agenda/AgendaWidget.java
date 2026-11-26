@@ -32,7 +32,7 @@ public class AgendaWidget extends AppWidgetProvider {
     public void onReceive(Context c, Intent i) {
         if (REFRESH.equals(i.getAction())) {
             RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget);
-            v.setTextViewText(R.id.at, "Mise à jour…");
+            v.setTextViewText(R.id.refresh, "…");
             AppWidgetManager.getInstance(c).partiallyUpdateAppWidget(ids(c), v);
             background(c, goAsync());
             return;
@@ -104,38 +104,36 @@ public class AgendaWidget extends AppWidgetProvider {
         SharedPreferences p = c.getSharedPreferences(Web.PREFS, Context.MODE_PRIVATE);
         String raw = p.getString("data", null);
         if (raw == null) {
-            v.setTextViewText(R.id.title, "📅 Agenda");
-            v.setTextViewText(R.id.today, "Ouvre l’appli une fois (et colle ton jeton de synchro) pour remplir le widget.");
+            v.setTextViewText(R.id.title, "Agenda");
+            v.setTextViewText(R.id.bal, "");
+            v.setTextViewText(R.id.today, "Ouvre l’appli une fois pour remplir le widget.");
             v.setTextViewText(R.id.tomorrow, "");
             v.setTextViewText(R.id.budget, "");
-            v.setTextViewText(R.id.at, "");
             return v;
         }
         try {
-            JSONObject o = new JSONObject(raw);
-            v.setTextViewText(R.id.title, "📅 Aujourd’hui · " + o.optString("date"));
-            String t = lines(o.optJSONArray("today"), "\n", 5);
-            v.setTextViewText(R.id.today, t.isEmpty() ? "Rien de prévu aujourd’hui ✨" : t);
-            String d = lines(o.optJSONArray("tomorrow"), " · ", 3);
-            v.setTextViewText(R.id.tomorrow, d.isEmpty() ? "Demain : rien de prévu" : "Demain : " + d);
-
-            StringBuilder b = new StringBuilder();
-            String bal = str(o, "bal"), sal = str(o, "sal"), eve = str(o, "eve"), low = str(o, "low");
-            b.append("💰 Solde : ").append(bal != null ? bal : "à définir dans l’appli");
-            if (sal != null) b.append("\n💼 Salaire : ").append(sal);
-            String pc = str(o, "poche");
-            if (pc != null) b.append("\n🎉 Argent de poche : reste ").append(pc);
-            if (low != null) b.append("\n📉 Point bas : ").append(low);
-            else if (eve != null) b.append("\n🐷 La veille du salaire : ").append(eve);
-            if (o.optBoolean("warn")) b.append("\n⚠️ Sous ta limite de découvert : ouvre l’appli");
-            v.setTextViewText(R.id.budget, b.toString());
-            v.setTextColor(R.id.budget, o.optBoolean("warn") ? Color.parseColor("#FF9C8F") : Color.WHITE);
-
-            long ts = p.getLong("t", 0);
-            boolean old = System.currentTimeMillis() - ts > 3L * 3600 * 1000;
-            v.setTextViewText(R.id.at, "Mis à jour à " + o.optString("at") + (old ? " (ancien : touche ↻)" : ""));
+            JSONObject all = new JSONObject(raw), o = all.optJSONObject("w");
+            boolean old = System.currentTimeMillis() - p.getLong("t", 0) > 3L * 3600 * 1000;
+            if (o == null) { // ancienne version du site : on affiche l'essentiel
+                v.setTextViewText(R.id.title, all.optString("date"));
+                v.setTextViewText(R.id.bal, all.isNull("bal") ? "" : all.optString("bal"));
+                v.setTextViewText(R.id.today, lines(all.optJSONArray("today"), "\n", 3));
+                v.setTextViewText(R.id.tomorrow, "");
+                v.setTextViewText(R.id.budget, "");
+                return v;
+            }
+            v.setTextViewText(R.id.title, o.optString("d") + (old ? "  ·  à actualiser" : ""));
+            v.setTextViewText(R.id.bal, o.optString("bal"));
+            v.setTextColor(R.id.bal, o.optBoolean("neg") ? Color.parseColor("#FF8A80") : Color.WHITE);
+            String t = lines(o.optJSONArray("t"), "\n", 3);
+            int more = o.optInt("tx");
+            v.setTextViewText(R.id.today, t.isEmpty() ? "Rien aujourd’hui ✨" : t + (more > 0 ? "\n+" + more + " autre" + (more > 1 ? "s" : "") : ""));
+            String tm = o.optString("tm");
+            v.setTextViewText(R.id.tomorrow, "Demain · " + (tm.isEmpty() ? "rien" : tm));
+            v.setTextViewText(R.id.budget, o.optString("st"));
+            v.setTextColor(R.id.budget, o.optBoolean("warn") ? Color.parseColor("#FF8A80") : Color.parseColor("#D8E6E7"));
         } catch (Exception e) {
-            v.setTextViewText(R.id.today, "Données illisibles : ouvre l’appli.");
+            v.setTextViewText(R.id.today, "Ouvre l’appli pour actualiser.");
         }
         return v;
     }
