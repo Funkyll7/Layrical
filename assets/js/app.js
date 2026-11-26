@@ -491,7 +491,7 @@ function dayEvents(s){const y=+s.slice(0,4),m=+s.slice(5,7)-1,L=[],h=holName(s);
  if(h)L.push({e:'🇫🇷',t:h,k:'ho'});
  on(s).forEach(i=>{const a=isInst(i)?instAmt(i,s):+i.amt||0;L.push({e:TY[i.type][2],t:(i.time?i.time+' ':'')+i.title,a:a?-a:null,k:i.type,id:i.id,dn:isDone(i,s)})});
  S.rec.forEach(r=>{const o=recOcc(r,y,m);if(o&&o.date==s)L.push({e:r.sal?'💼':o.amt>0?'💶':'📋',t:r.label,a:o.amt,k:'rec',id:r.id})});
- S.tx.filter(t=>t.date==s).forEach(t=>{const e=t.amt>0?'💶':t.cat=='Épargne'?'🐷':/^💳/.test(t.label)?'💳':(CAT_E[t.cat]||'📌');L.push({e,t:noDup(e,t.label),a:t.amt,k:'tx',id:t.id})});
+ S.tx.filter(t=>t.date==s).forEach(t=>{const e=t.amt>0?'💶':t.cat=='Épargne'?'🐷':/^💳/.test(t.label)?'💳':(CAT_E[t.cat]||'📌');L.push({e,t:noDup(e,t.label),a:t.amt,k:'tx',id:t.id,ct:+t.ct||0})});
  dueOn(s).forEach(d=>L.push({e:'💸',t:(d.dir=='owe'?'À rembourser : ':'À recevoir : ')+d.who,a:d.dir=='owe'?-dLeft(d):dLeft(d),k:'debt',id:d.id}));
  return L}
 function bigAgenda(){const y=S.cy,m=S.cm,first=new Date(y,m,1,12),off=(first.getDay()+6)%7,nd=new Date(y,m+1,0).getDate(),weeks=Math.ceil((off+nd)/7);let tot=0,g='';
@@ -564,13 +564,15 @@ function rawF(){let L=[];try{L=JSON.parse(AgendaNative.raw()||'[]')}catch(e){}
  +(L.length?L.slice().reverse().map(x=>'<div class="row"><div class="t"><b>'+(x.bank=='ce'?'Caisse d’Épargne':'Revolut')+' · '+esc(x.res||'')+'</b><small>'+esc(x.at||'')+'<br>'+esc(x.title||'')+' — '+esc(x.text||'')+'</small></div></div>').join(''):'<div class="empty">Rien pour l’instant.</div>'))}
 
 // Résumé pour le widget de l'appli Android (fourni par l'appli via window.AgendaNative)
-function widgetData(){const ln=d=>dayEvents(d).filter(e=>!e.dn).map(e=>e.e+' '+e.t+(e.a?' · '+eur(e.a):'')),f=forecast(),B=balNow(),n=new Date();
+// Widget : opérations bancaires du jour en premier, la plus récente d’abord, puis le reste de la journée
+const wEv=d=>{const L=dayEvents(d),T=L.filter(e=>e.k=='tx').sort((a,b)=>b.ct-a.ct);return T.concat(L.filter(e=>e.k!='tx'))};
+function widgetData(){const ln=d=>wEv(d).filter(e=>!e.dn).map(e=>e.e+' '+e.t+(e.a?' · '+eur(e.a):'')),f=forecast(),B=balNow(),n=new Date();
  return {w:widgetShort(),date:dl(TD),today:ln(TD),tomorrow:ln(dayAdd(TD,1)),bal:B===null?null:eur(B),neg:B!==null&&B<0,
   sal:f?dl(f.nxt)+' ('+inj(f.D).toLowerCase()+')':null,eve:f&&f.B!==null?eur(f.before):null,
   low:f&&f.B!==null&&f.low<0?eur(f.low)+' le '+dl(f.lowDay):null,poche:(()=>{const p=pocheStats();return p.bud||p.sp?eur(p.left)+' sur '+eur(p.bud):null})(),warn:!!(f&&f.def>0.005),at:pad(n.getHours())+':'+pad(n.getMinutes())}}
 // Widget : version courte (date, solde arrondi, 3 lignes max aujourd'hui, demain en une ligne, 3 chiffres)
 function widgetShort(){const e0=v=>(v<0?'−':'')+Math.abs(Math.round(v)).toLocaleString('fr-FR')+' €',f=salRec()?forecast():null,B=balNow(),p=pocheStats();
- const cl=t=>String(t).replace(/^[^\p{L}\p{N}]+/u,'').trim(),cut=t=>t.length>15?t.slice(0,14).trim()+'…':t,ev=d=>dayEvents(d).filter(e=>!e.dn&&e.k!='ho'),ln=d=>ev(d).map(e=>e.e+'  '+cut(cl(e.t))),T=ln(TD),TA=ev(TD).map(e=>e.a?(e.a>0?'+':'−')+Math.abs(e.a).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':''),D=ln(dayAdd(TD,1)),dd=P(TD).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+ const cl=t=>String(t).replace(/^[^\p{L}\p{N}]+/u,'').trim(),cut=t=>t.length>15?t.slice(0,14).trim()+'…':t,ev=d=>wEv(d).filter(e=>!e.dn&&e.k!='ho'),ln=d=>ev(d).map(e=>e.e+'  '+cut(cl(e.t))),T=ln(TD),TA=ev(TD).map(e=>e.a?(e.a>0?'+':'−')+Math.abs(e.a).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':''),D=ln(dayAdd(TD,1)),dd=P(TD).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
  const st=[],sts=[];if(p.bud||p.sp||p.fix){st.push('Poche  '+e0(p.left));sts.push(['🎉','Poche',e0(p.left),p.left<0?'bad':'ok'])}if(f){st.push('Salaire  '+(f.D<=0?'auj.':'J−'+f.D));sts.push(['💼','Salaire',f.D<=0?'auj.':'J−'+f.D,''])}if(f&&f.B!==null){st.push((f.def?'⚠ ':'')+'Point bas  '+e0(f.low));sts.push([f.def?'⚠️':'📉','Point bas',e0(f.low),f.def?'bad':f.low<0?'warn':''])}
  return {d:dd.charAt(0).toUpperCase()+dd.slice(1),bal:B===null?'':e0(B),neg:B!==null&&B<0,t:T.slice(0,3),ta:TA.slice(0,3),tx:Math.max(0,T.length-3),tm:D.length?cl(D[0].replace(/^\S+\s+/,''))+(D.length>1?' +'+(D.length-1):''):'',st:st.join('\n'),sts,warn:!!(f&&f.def)}}
 function wpush(){try{const b=document.querySelector('.mub');if(b)b.hidden=!(window.AgendaNative&&AgendaNative.musicPlay)}catch(e){}musicSync();try{if(window.AgendaNative)AgendaNative.update(JSON.stringify(widgetData()))}catch(e){}clearTimeout(wpush.t);wpush.t=setTimeout(nsched,400)}
