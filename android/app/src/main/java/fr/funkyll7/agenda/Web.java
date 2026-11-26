@@ -90,6 +90,18 @@ final class Web {
         @JavascriptInterface
         public String version() { return "1.0." + Updater.current(c); }
 
+        /** 🎵 « resume » : reprendre la dernière écoute ; « list » : lancer la playlist favorite. */
+        @JavascriptInterface
+        public void musicPlay(String mode) {
+            new Handler(Looper.getMainLooper()).post(() -> { if ("list".equals(mode)) Music.playList(c); else Music.openAndPlay(c); });
+        }
+
+        @JavascriptInterface
+        public void musicSet(String url, String wmode) { Music.set(c, url, wmode); }
+
+        @JavascriptInterface
+        public boolean musicInstalled() { return Music.installed(c); }
+
         /** Fin de la mise à jour en arrière-plan. */
         @JavascriptInterface
         public void done() {

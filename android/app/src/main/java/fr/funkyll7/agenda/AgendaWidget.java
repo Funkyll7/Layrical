@@ -102,6 +102,10 @@ public class AgendaWidget extends AppWidgetProvider {
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
 
         v.setTextViewText(R.id.refresh, "↻");
+        // ♫ : ouvre YouTube Music (playlist favorite ou reprise de la dernière écoute)
+        PendingIntent mp = PendingIntent.getActivity(c, 8, new Intent(c, MusicReceiver.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        v.setOnClickPendingIntent(R.id.music, mp);
         SharedPreferences p = c.getSharedPreferences(Web.PREFS, Context.MODE_PRIVATE);
         String raw = p.getString("data", null);
         if (raw == null) {

@@ -14,8 +14,8 @@ const dl=s=>P(s).toLocaleDateString('fr-FR',Object.assign({weekday:'short',day:'
 const diff=s=>Math.round((P(s)-P(TD))/864e5);
 const inj=n=>n==0?"Aujourd’hui":n==1?'Demain':'Dans '+n+' j';
 let S={items:[],tx:[],debts:[],rec:[],sav:[],inv:[],subs:[],pushKey:null,notif:{hour:8},bal:null,plan:{inc:'',p:{poche:50,invest:25,pepin:25}},bud:{},ts:0,tab:'home',sel:TD,cy:+TD.slice(0,4),cm:+TD.slice(5,7)-1,by:+TD.slice(0,4),bm:+TD.slice(5,7)-1};
-let SYNC='local';const apply=o=>{S.items=o.items||[];S.tx=o.tx||[];S.debts=o.debts||[];S.rec=o.rec||[];S.bal=o.bal||null;S.notes=o.notes||'';S.plan=o.plan||{inc:'',p:{poche:50,invest:25,pepin:25}};S.sav=o.sav||[];S.inv=o.inv||[];S.subs=o.subs||[];S.pushKey=o.pushKey||null;S.notif=o.notif||{hour:8};S.bud=o.bud||{};S.poche=o.poche||{tx:[],round:{on:true,x:1}};S.card=o.card||[];S.contacts=o.contacts||[];S.ts=o.ts||0};try{const r=localStorage.getItem('agenda-perso');if(r)apply(JSON.parse(r))}catch(e){}
-const snap=()=>({items:S.items,tx:S.tx,debts:S.debts,rec:S.rec,bal:S.bal,notes:S.notes||'',plan:S.plan,sav:S.sav,inv:S.inv,subs:S.subs,pushKey:S.pushKey,notif:S.notif,bud:S.bud,poche:S.poche,card:S.card,contacts:S.contacts,ts:S.ts});
+let SYNC='local';const apply=o=>{S.items=o.items||[];S.tx=o.tx||[];S.debts=o.debts||[];S.rec=o.rec||[];S.bal=o.bal||null;S.notes=o.notes||'';S.plan=o.plan||{inc:'',p:{poche:50,invest:25,pepin:25}};S.sav=o.sav||[];S.inv=o.inv||[];S.subs=o.subs||[];S.pushKey=o.pushKey||null;S.notif=o.notif||{hour:8};S.bud=o.bud||{};S.poche=o.poche||{tx:[],round:{on:true,x:1}};S.card=o.card||[];S.contacts=o.contacts||[];S.music=o.music||{url:'',wmode:'resume'};S.ts=o.ts||0};try{const r=localStorage.getItem('agenda-perso');if(r)apply(JSON.parse(r))}catch(e){}
+const snap=()=>({items:S.items,tx:S.tx,debts:S.debts,rec:S.rec,bal:S.bal,notes:S.notes||'',plan:S.plan,sav:S.sav,inv:S.inv,subs:S.subs,pushKey:S.pushKey,notif:S.notif,bud:S.bud,poche:S.poche,card:S.card,contacts:S.contacts,music:S.music,ts:S.ts});
 let ERR='';const badge=()=>{const e=$('#sy');e.textContent=SYNC=='ok'?'☁️ Synchronisé':SYNC=='sav'?'☁️ Envoi…':SYNC=='err'?'⚠️ '+(ERR||'Hors ligne'):'📱 Local · touche pour régler la synchro';e.onclick=()=>gs();e.style.cursor='pointer'};
 const lsave=()=>{try{localStorage.setItem('agenda-perso',JSON.stringify(snap()))}catch(e){}};
 const save=()=>{S.ts=Date.now();lsave();if(GH.token&&GH.repo){SYNC='sav';badge();clearTimeout(tm);tm=setTimeout(push,1200)}};
@@ -82,6 +82,18 @@ const gmapsUrl=a=>'https://www.google.com/maps/dir/?api=1&destination='+encodeUR
 function contactsCard(){const L=(S.contacts||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'fr'));
  return '<h2>📍 Mes adresses</h2><div class="ctr">'+L.map(c=>'<button class="cc" onclick="goF(\''+c.id+'\')" aria-label="Aller chez '+esc(c.name)+'"><span>'+(c.emo||'📍')+'</span><b>'+esc(c.name)+'</b></button>').join('')
  +'<button class="cc add" onclick="ctF()" aria-label="Ajouter une adresse"><span>＋</span><b>Ajouter</b></button></div>'}
+// 🎵 YouTube Music (appli Android) : ouvre YouTube Music et lance la reprise ou la playlist favorite
+const okYtUrl=u=>/^https:\/\/(music\.youtube\.com|(www\.|m\.)?youtube\.com|youtu\.be)\//i.test(u||'');
+function musicSync(){try{const m=S.music||{};if(window.AgendaNative&&AgendaNative.musicSet)AgendaNative.musicSet(m.url||'',m.wmode||'resume')}catch(e){}}
+function musicF(){const m=S.music||{url:'',wmode:'resume'},has=!!m.url;
+ sheet('<h2 style="margin-top:0">🎵 YouTube Music</h2><button class="go" style="margin-top:0" onclick="AgendaNative.musicPlay(\'resume\');closeF()">▶ Reprendre ma dernière écoute</button>'
+ +(has?'<button class="go" style="background:var(--acs);color:var(--ac)" onclick="AgendaNative.musicPlay(\'list\');closeF()">🎶 Lancer ma playlist</button>':'')
+ +'<label>Lien de ma playlist favorite</label><input id="mu_u" value="'+esc(m.url||'')+'" placeholder="https://music.youtube.com/playlist?list=…"><small style="color:var(--mu);font-size:12px;display:block;margin-top:4px">Dans YouTube Music : ta playlist → ⋮ → Partager → Copier le lien.</small>'
+ +'<label>Le bouton ♫ du widget lance</label><div class="seg" id="mu_w"><button type="button" class="'+(m.wmode!='list'?'on':'')+'" onclick="pkT(this)">Ma dernière écoute</button><button type="button" class="'+(m.wmode=='list'?'on':'')+'" onclick="pkT(this)">Ma playlist</button></div>'
+ +'<small style="color:var(--mu);font-size:12px;display:block;margin-top:8px">Sans YouTube Music Premium, la musique ne joue que quand YouTube Music est à l’écran : l’appli l’ouvre donc au premier plan et lance la lecture.</small>'
+ +'<button class="go" onclick="musicSave()">Enregistrer</button>')}
+function musicSave(){const u=$('#mu_u').value.trim(),w=($('#mu_w button.on')||{}).textContent=='Ma playlist'?'list':'resume';if(u&&!okYtUrl(u)){alert('Colle un lien YouTube Music (https://music.youtube.com/…).');return}if(w=='list'&&!u){alert('Ajoute le lien de ta playlist pour que le widget la lance.');return}
+ S.music={url:u,wmode:w};save();musicSync();closeF()}
 const BankNorm=s=>String(s||'').normalize('NFD').replace(/\p{M}/gu,'').toLowerCase();
 // Fenêtre 📍 (barre du haut) : toutes les adresses, défilables, avec recherche
 function adrF(){const L=(S.contacts||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'fr'));
@@ -545,7 +557,7 @@ function widgetShort(){const e0=v=>(v<0?'−':'')+Math.abs(Math.round(v)).toLoca
  const cl=t=>String(t).replace(/^[^\p{L}\p{N}]+/u,'').trim(),cut=t=>t.length>17?t.slice(0,16).trim()+'…':t,ev=d=>dayEvents(d).filter(e=>!e.dn&&e.k!='ho'),ln=d=>ev(d).map(e=>e.e+'  '+cut(cl(e.t))),T=ln(TD),TA=ev(TD).map(e=>e.a?(e.a>0?'+':'−')+Math.abs(e.a).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':''),D=ln(dayAdd(TD,1)),dd=P(TD).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
  const st=[];if(p.bud||p.sp||p.fix)st.push('Poche  '+e0(p.left));if(f)st.push('Salaire  '+(f.D<=0?'auj.':'J−'+f.D));if(f&&f.B!==null)st.push((f.def?'⚠ ':'')+'Point bas  '+e0(f.low));
  return {d:dd.charAt(0).toUpperCase()+dd.slice(1),bal:B===null?'':e0(B),neg:B!==null&&B<0,t:T.slice(0,3),ta:TA.slice(0,3),tx:Math.max(0,T.length-3),tm:D.length?cl(D[0].replace(/^\S+\s+/,''))+(D.length>1?' +'+(D.length-1):''):'',st:st.join('\n'),warn:!!(f&&f.def)}}
-function wpush(){try{if(window.AgendaNative)AgendaNative.update(JSON.stringify(widgetData()))}catch(e){}clearTimeout(wpush.t);wpush.t=setTimeout(nsched,400)}
+function wpush(){try{const b=document.querySelector('.mub');if(b)b.hidden=!(window.AgendaNative&&AgendaNative.musicPlay)}catch(e){}musicSync();try{if(window.AgendaNative)AgendaNative.update(JSON.stringify(widgetData()))}catch(e){}clearTimeout(wpush.t);wpush.t=setTimeout(nsched,400)}
 // Notifications programmées dans le téléphone par l'appli Android (8 jours d'avance, recalculées à chaque ouverture/synchro)
 async function nsched(){try{if(!window.AgendaNative||!AgendaNative.schedule)return;const m=await import(new URL('scripts/rappels-calc.mjs',document.baseURI).href);const L=m.plan(snap(),TD,8).map(x=>({at:x.at,title:x.title,body:x.body,tag:x.tag}));AgendaNative.schedule(JSON.stringify(L));return L.length}catch(e){console.warn("nsched",e)}}
 function render(){setTimeout(wpush,0);document.body.classList.toggle('wide',wideAg());

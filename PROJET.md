@@ -99,3 +99,6 @@ Composants communs : `L1` (ligne d'une ligne : icône, titre, sous-titre, montan
 
 ## Argent de poche : correction
 `S.poche.set = {amt,date,at}` (bouton « Corriger ») : ce qu'il y a vraiment sur Revolut à une date. Le reste repart de ce montant et ne compte que les mouvements suivants (`at` horodate chaque dépense), jusqu'au prochain salaire ; ensuite, retour au montant prévu par le budget.
+
+## 🎵 YouTube Music
+`S.music = {url, wmode:'resume'|'list'}`. Bouton 🎵 dans la barre du haut (seulement dans l'appli Android) et ♫ sur le widget. Sans Premium, YouTube Music ne joue qu'au premier plan : l'appli l'ouvre (`Music.openAndPlay` : lancement de YouTube Music puis « Lecture » via sa session média ou la touche média) ou ouvre directement le lien de la playlist (`Music.playList`). Le widget passe par un écran invisible (`MusicReceiver`) pour avoir le droit d'ouvrir YouTube Music. Pas de contournement de la restriction de lecture en arrière-plan de YouTube.

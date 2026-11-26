@@ -26,6 +26,16 @@
             android:maxLines="1"
             android:ellipsize="end" />
         <TextView
+            android:id="@+id/music"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="12dp"
+            android:paddingEnd="6dp"
+            android:fontFamily="sans-serif"
+            android:textColor="#8FD6D0"
+            android:textSize="16sp"
+            android:text="♫" />
+        <TextView
             android:id="@+id/refresh"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
