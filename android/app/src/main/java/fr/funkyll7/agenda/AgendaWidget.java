@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Handler;
+import android.text.Html;
 import android.os.Looper;
 import android.webkit.WebView;
 import android.widget.RemoteViews;
@@ -136,13 +137,29 @@ public class AgendaWidget extends AppWidgetProvider {
             JSONArray ta = o.optJSONArray("ta");
             StringBuilder am = new StringBuilder();
             if (ta != null) for (int k = 0; k < Math.min(3, ta.length()); k++) { if (k > 0) am.append("\n"); am.append(ta.optString(k)); }
-            v.setTextViewText(R.id.todayAmt, am.toString());
+            // montants en couleur : dépense rose, rentrée verte
+            StringBuilder hm = new StringBuilder();
+            if (ta != null) for (int k = 0; k < Math.min(3, ta.length()); k++) {
+                String x = ta.optString(k);
+                if (k > 0) hm.append("<br>");
+                hm.append(x.isEmpty() ? "&nbsp;" : "<font color='" + (x.startsWith("+") ? "#7FE0C0" : "#FFA49A") + "'>" + Html.escapeHtml(x) + "</font>");
+            }
+            v.setTextViewText(R.id.todayAmt, Html.fromHtml(hm.toString(), Html.FROM_HTML_MODE_LEGACY));
             int more = o.optInt("tx");
-            v.setTextViewText(R.id.today, t.isEmpty() ? "Rien de prévu aujourd’hui" : t + (more > 0 ? "\n+ " + more + " autre" + (more > 1 ? "s" : "") : ""));
+            v.setTextViewText(R.id.today, t.isEmpty() ? "✨ Rien de prévu aujourd’hui" : t + (more > 0 ? "\n+ " + more + " autre" + (more > 1 ? "s" : "") : ""));
             String tm = o.optString("tm");
-            v.setTextViewText(R.id.tomorrow, "Demain · " + (tm.isEmpty() ? "rien" : tm));
-            v.setTextViewText(R.id.budget, o.optString("st"));
-            v.setTextColor(R.id.budget, o.optBoolean("warn") ? Color.parseColor("#FF8A80") : Color.parseColor("#B9CCCE"));
+            v.setTextViewText(R.id.tomorrow, "🌙 Demain · " + (tm.isEmpty() ? "rien de prévu" : tm));
+            JSONArray sts = o.optJSONArray("sts");
+            if (sts != null && sts.length() > 0) {
+                StringBuilder hb = new StringBuilder();
+                for (int k = 0; k < sts.length(); k++) {
+                    JSONArray r = sts.getJSONArray(k);
+                    String cls = r.optString(3), col = "bad".equals(cls) ? "#FF8A80" : "warn".equals(cls) ? "#F2C36B" : "ok".equals(cls) ? "#7FE0C0" : "#FFFFFF";
+                    if (k > 0) hb.append("<br>");
+                    hb.append(Html.escapeHtml(r.optString(0))).append("&nbsp;&nbsp;<b><font color='").append(col).append("'>").append(Html.escapeHtml(r.optString(2))).append("</font></b>");
+                }
+                v.setTextViewText(R.id.budget, Html.fromHtml(hb.toString(), Html.FROM_HTML_MODE_LEGACY));
+            } else v.setTextViewText(R.id.budget, o.optString("st"));
         } catch (Exception e) {
             v.setTextViewText(R.id.today, "Ouvre l’appli pour actualiser.");
         }

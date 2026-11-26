@@ -20,9 +20,10 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:fontFamily="sans-serif-medium"
-            android:textColor="#7FA0A3"
-            android:textSize="12sp"
-            android:letterSpacing="0.04"
+            android:textColor="#4CC3C3"
+            android:textSize="12.5sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.06"
             android:maxLines="1"
             android:ellipsize="end" />
         <TextView
@@ -32,9 +33,9 @@
             android:paddingStart="12dp"
             android:paddingEnd="6dp"
             android:fontFamily="sans-serif"
-            android:textColor="#8FD6D0"
-            android:textSize="16sp"
-            android:text="♫" />
+            android:textColor="#FFFFFF"
+            android:textSize="17sp"
+            android:text="🎵" />
         <TextView
             android:id="@+id/refresh"
             android:layout_width="wrap_content"
@@ -70,7 +71,7 @@
                     android:layout_weight="1"
                     android:fontFamily="sans-serif-medium"
                     android:textColor="#FFFFFF"
-                    android:textSize="14.5sp"
+                    android:textSize="15.5sp"
                     android:lineSpacingExtra="5dp"
                     android:maxLines="4"
                     android:ellipsize="end" />
@@ -82,7 +83,7 @@
                     android:gravity="end"
                     android:fontFamily="sans-serif-medium"
                     android:textColor="#FFFFFF"
-                    android:textSize="14.5sp"
+                    android:textSize="15.5sp"
                     android:lineSpacingExtra="5dp"
                     android:maxLines="4" />
             </LinearLayout>
@@ -112,12 +113,20 @@
             android:orientation="vertical"
             android:gravity="start">
             <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:textColor="#7FA0A3"
+                android:textSize="10.5sp"
+                android:letterSpacing="0.08"
+                android:text="💰 SOLDE" />
+            <TextView
                 android:id="@+id/bal"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif-medium"
                 android:textColor="#FFFFFF"
-                android:textSize="24sp"
+                android:textSize="28sp"
                 android:textStyle="bold"
                 android:maxLines="1" />
             <TextView
@@ -128,8 +137,8 @@
                 android:gravity="start"
                 android:fontFamily="sans-serif"
                 android:textColor="#B9CCCE"
-                android:textSize="12sp"
-                android:lineSpacingExtra="3dp"
+                android:textSize="13sp"
+                android:lineSpacingExtra="4dp"
                 android:maxLines="3" />
         </LinearLayout>
     </LinearLayout>
