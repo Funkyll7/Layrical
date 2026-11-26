@@ -21,7 +21,10 @@ public class UpdateReceiver extends BroadcastReceiver {
             if (MainActivity.isOpen()) c.startActivity(confirm);
             else Updater.notify(c, "Une nouvelle version est prête : touche pour l’installer.",
                     PendingIntent.getActivity(c, 7, confirm, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
-        } else if (st != PackageInstaller.STATUS_SUCCESS && MainActivity.isOpen()) {
+        } else if (st != PackageInstaller.STATUS_SUCCESS) {
+            // installation annulée ou ratée : on reproposera dès le prochain retour dans l'appli
+            c.getSharedPreferences("update", Context.MODE_PRIVATE).edit().putLong("checked", 0).putLong("tried", 0).apply();
+            if (!MainActivity.isOpen() || st == PackageInstaller.STATUS_FAILURE_ABORTED) return;
             String m = i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
             Toast.makeText(c, "Mise à jour non installée" + (m != null ? " : " + m : ""), Toast.LENGTH_LONG).show();
         }

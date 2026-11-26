@@ -82,7 +82,7 @@ final class Updater {
             force = true;
             p.edit().putBoolean("needPerm", false).apply();
         }
-        if (!force && now - p.getLong("checked", 0) < 2 * 60_000L) return;
+        if (!force && now - p.getLong("checked", 0) < 30_000L) return;
         p.edit().putLong("checked", now).apply();
         final boolean f = force;
         new Thread(() -> {
