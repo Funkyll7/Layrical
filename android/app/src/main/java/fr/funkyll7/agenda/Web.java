@@ -142,6 +142,13 @@ final class Web {
         @JavascriptInterface
         public void splitSettings() { Split.openSettings(c); }
 
+        /** Diagnostic du dernier essai d'écran partagé (vide s'il n'y en a pas). */
+        @JavascriptInterface
+        public boolean splitHasDebug() { return !Split.debug(c).isEmpty(); }
+
+        @JavascriptInterface
+        public void splitCopyDebug() { new Handler(Looper.getMainLooper()).post(() -> Split.copyDebug(c)); }
+
         /** YouTube Music en haut (¼), Waze en bas (¾). */
         @JavascriptInterface
         public void wazeSplit(String url, boolean bubble) {

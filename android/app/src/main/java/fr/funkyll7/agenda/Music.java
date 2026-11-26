@@ -88,6 +88,14 @@ final class Music {
         }, 2500);
     }
 
+    /** Relance YouTube Music s'il s'est mis en pause (passage par les applis récentes). */
+    static void playIfPaused(Context ctx) {
+        Context c = ctx.getApplicationContext();
+        if (playing(c)) return;
+        MediaController mc = session(c);
+        try { if (mc != null) mc.getTransportControls().play(); else key(c, true); } catch (Exception ignored) { }
+    }
+
     /** Relance la dernière musique écoutée, quelle que soit l'appli (touche « Lecture » du système). */
     static void playAny(Context ctx) {
         Context c = ctx.getApplicationContext();
