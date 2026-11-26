@@ -28,17 +28,16 @@
             android:letterSpacing="0.06"
             android:maxLines="1"
             android:ellipsize="end" />
-        <TextView
+        <!-- 🎵 redessinée pixel pour pixel, dans la couleur du ↻ (#7FA0A3) -->
+        <ImageView
             android:id="@+id/music"
             android:layout_width="34dp"
             android:layout_height="28dp"
             android:layout_gravity="center_vertical"
-            android:gravity="center"
-            android:includeFontPadding="false"
             android:paddingBottom="2dp"
-            android:textColor="#FFFFFF"
-            android:textSize="15sp"
-            android:text="🎵" />
+            android:scaleType="center"
+            android:contentDescription="Musique"
+            android:src="@drawable/ic_w_music" />
         <FrameLayout
             android:layout_width="14dp"
             android:layout_height="1dp" />
