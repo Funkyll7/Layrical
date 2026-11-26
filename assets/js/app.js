@@ -73,7 +73,9 @@ function balF(){sheet('<h2 style="margin-top:0">Mon solde actuel</h2><label>Sold
 function saveBal(){const a=parseFloat($('#b_a').value),d=$('#b_d').value||TD;if(isNaN(a)){alert('Indique ton solde (il peut être négatif).');return}if(d>TD){alert('La date ne peut pas être dans le futur.');return}S.bal={amt:a,date:d,at:Date.now()};save();closeF();render()}
 function delBal(){S.bal=null;save();closeF();render()}
 function stopRec(id){const r=S.rec.find(x=>x.id==id);if(!r||!confirm('Arrêter « '+r.label+' » ? Les mois passés restent dans l’historique.'))return;if(r.start>TD)S.rec=S.rec.filter(x=>x!==r);else r.end=TD;save();render()}
-function txRow(t){const fut=t.date>TD;return L1({ic:t.amt>0?'💶':(CAT_E[t.cat]||'📦'),t:(t.rec?'🔁 ':'')+esc(t.label),s:dl(t.date)+' · '+t.cat+(t.rec?' · fixe':'')+(fut?' · à venir':''),a:(t.amt>0?'+':'−')+eur(Math.abs(t.amt)),ac:t.amt>0?'pos':'',on:"openEdit('"+(t.rec?'rec':'tx')+"','"+(t.rec?t.rid:t.id)+"')"})}
+// enlève l’emoji en tête du libellé s’il est déjà affiché comme icône (évite « 💳 💳 Paiement carte »)
+const noDup=(e,s)=>{s=String(s==null?'':s);return e&&s.startsWith(e)?s.slice(e.length).replace(/^[\s\uFE0F]+/,''):s};
+function txRow(t){const fut=t.date>TD,ic=t.amt>0?'💶':(CAT_E[t.cat]||'📦');return L1({ic,t:(t.rec?'🔁 ':'')+esc(noDup(ic,t.label)),s:dl(t.date)+' · '+t.cat+(t.rec?' · fixe':'')+(fut?' · à venir':''),a:(t.amt>0?'+':'−')+eur(Math.abs(t.amt)),ac:t.amt>0?'pos':'',on:"openEdit('"+(t.rec?'rec':'tx')+"','"+(t.rec?t.rid:t.id)+"')"})}
 const appVer=()=>{try{return window.AgendaNative&&AgendaNative.version?'<small class="ver">Appli '+esc(AgendaNative.version())+'</small>':''}catch(e){return ''}};
 // ===== Mes adresses : un contact, une adresse, Waze en un geste =====
 const CT_EMO=['🏠','👨‍👩‍👧','❤️','👫','💼','🏋️','🩺','✂️','🛒','🎓','⭐'];
@@ -481,7 +483,7 @@ function dayEvents(s){const y=+s.slice(0,4),m=+s.slice(5,7)-1,L=[],h=holName(s);
  if(h)L.push({e:'🇫🇷',t:h,k:'ho'});
  on(s).forEach(i=>{const a=isInst(i)?instAmt(i,s):+i.amt||0;L.push({e:TY[i.type][2],t:(i.time?i.time+' ':'')+i.title,a:a?-a:null,k:i.type,id:i.id,dn:isDone(i,s)})});
  S.rec.forEach(r=>{const o=recOcc(r,y,m);if(o&&o.date==s)L.push({e:r.sal?'💼':o.amt>0?'💶':'📋',t:r.label,a:o.amt,k:'rec',id:r.id})});
- S.tx.filter(t=>t.date==s).forEach(t=>L.push({e:t.amt>0?'💶':t.cat=='Épargne'?'🐷':/^💳/.test(t.label)?'💳':(CAT_E[t.cat]||'📌'),t:t.label,a:t.amt,k:'tx',id:t.id}));
+ S.tx.filter(t=>t.date==s).forEach(t=>{const e=t.amt>0?'💶':t.cat=='Épargne'?'🐷':/^💳/.test(t.label)?'💳':(CAT_E[t.cat]||'📌');L.push({e,t:noDup(e,t.label),a:t.amt,k:'tx',id:t.id})});
  dueOn(s).forEach(d=>L.push({e:'💸',t:(d.dir=='owe'?'À rembourser : ':'À recevoir : ')+d.who,a:d.dir=='owe'?-dLeft(d):dLeft(d),k:'debt',id:d.id}));
  return L}
 function bigAgenda(){const y=S.cy,m=S.cm,first=new Date(y,m,1,12),off=(first.getDay()+6)%7,nd=new Date(y,m+1,0).getDate(),weeks=Math.ceil((off+nd)/7);let tot=0,g='';
