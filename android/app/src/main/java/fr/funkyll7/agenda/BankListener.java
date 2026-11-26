@@ -26,10 +26,23 @@ public class BankListener extends NotificationListenerService {
     static final String P = "bank";
 
     @Override
-    public void onNotificationPosted(StatusBarNotification sbn) {
+    public void onNotificationPosted(StatusBarNotification sbn) { process(sbn); }
+
+    /** À l'activation (et à chaque redémarrage du service) : relit les notifications bancaires déjà affichées. */
+    @Override
+    public void onListenerConnected() {
+        try {
+            StatusBarNotification[] all = getActiveNotifications();
+            if (all != null) for (StatusBarNotification sbn : all)
+                if (System.currentTimeMillis() - sbn.getPostTime() < 3L * 24 * 3600_000L) process(sbn);
+        } catch (Exception ignored) { }
+    }
+
+    private void process(StatusBarNotification sbn) {
         try {
             String bank = which(this, sbn.getPackageName());
             if (bank == null) return;
+            if (!firstTime(this, sbn.getKey() + "|" + sbn.getPostTime())) return; // déjà traitée
             Notification n = sbn.getNotification();
             if ((n.flags & Notification.FLAG_GROUP_SUMMARY) != 0) return;
             Bundle e = n.extras;
@@ -38,6 +51,19 @@ public class BankListener extends NotificationListenerService {
             if (x == null) x = e.getCharSequence(Notification.EXTRA_TEXT);
             handle(this, bank, t == null ? "" : t.toString(), x == null ? "" : x.toString(), sbn.getPostTime());
         } catch (Exception ignored) { }
+    }
+
+    /** Vrai la première fois qu'on voit cette notification (mémoire des 200 dernières). */
+    static synchronized boolean firstTime(Context c, String id) {
+        try {
+            SharedPreferences p = c.getSharedPreferences(P, Context.MODE_PRIVATE);
+            JSONArray seen = new JSONArray(p.getString("seen", "[]"));
+            for (int k = 0; k < seen.length(); k++) if (id.equals(seen.optString(k))) return false;
+            seen.put(id);
+            while (seen.length() > 200) seen.remove(0);
+            p.edit().putString("seen", seen.toString()).apply();
+        } catch (Exception ignored) { }
+        return true;
     }
 
     /** "revolut", "ce" ou null. */
