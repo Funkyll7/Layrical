@@ -93,6 +93,6 @@ Composants communs : `L1` (ligne d'une ligne : icône, titre, sous-titre, montan
 - Agenda (téléphone) : liste du jour en lignes compactes.
 
 ## Agenda, Budget et widget (version claire)
-- Agenda (téléphone) : chaque jour du calendrier affiche ses emojis (2 au plus, puis « +N »), week-ends en couleur, jours passés estompés ; dessous, un « Planning » : le jour choisi puis les jours suivants (14 jours) qui ont quelque chose, avec tout ce qui s'y passe (rendez-vous, prélèvements, salaire, mouvements, fériés). Bouton « Aujourd'hui » pour revenir.
+- Agenda (téléphone) : calendrier sobre (chiffre dans un rond, jusqu'à 3 petits points de couleur par jour, jour sélectionné plein, aujourd'hui cerclé, jours passés grisés) ; dessous, un « Planning » : le jour choisi puis les jours suivants (14 jours) qui ont quelque chose, avec tout ce qui s'y passe (rendez-vous, prélèvements, salaire, mouvements, fériés). Bouton « Aujourd'hui » pour revenir.
 - Budget : 4 sous-onglets mémorisés (`localStorage.bt`) : Résumé (bilan, 2 tuiles, salaire en 3 chiffres + détail replié, 4 premières catégories, graphiques repliés), Poche (argent de poche + Caisse d'Épargne), Fixes (fixes, quotidien, abonnements), Mouvements.
-- Widget : `widgetData().w` = version courte (`widgetShort`) : date + solde arrondi, 3 lignes au plus pour aujourd'hui, « Demain · … » sur une ligne, puis 🎉 poche · 💼 jours avant le salaire · 📉 point bas. « à actualiser » si plus de 3 h.
+- Widget : `widgetData().w` = version courte (`widgetShort`). Deux colonnes centrées sur fond opaque : à gauche la date, aujourd'hui (3 lignes, une icône chacune) et « Demain · … » ; à droite le solde arrondi en grand puis Poche / Salaire J−N / Point bas. « À actualiser » si plus de 3 h.

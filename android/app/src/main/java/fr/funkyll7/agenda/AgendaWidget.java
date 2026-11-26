@@ -101,6 +101,7 @@ public class AgendaWidget extends AppWidgetProvider {
         v.setOnClickPendingIntent(R.id.refresh, PendingIntent.getBroadcast(c, 1, rf,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
 
+        v.setTextViewText(R.id.refresh, "↻");
         SharedPreferences p = c.getSharedPreferences(Web.PREFS, Context.MODE_PRIVATE);
         String raw = p.getString("data", null);
         if (raw == null) {
@@ -122,16 +123,16 @@ public class AgendaWidget extends AppWidgetProvider {
                 v.setTextViewText(R.id.budget, "");
                 return v;
             }
-            v.setTextViewText(R.id.title, o.optString("d") + (old ? "  ·  à actualiser" : ""));
+            v.setTextViewText(R.id.title, o.optString("d").toUpperCase(java.util.Locale.FRANCE) + (old ? "  ·  À ACTUALISER" : ""));
             v.setTextViewText(R.id.bal, o.optString("bal"));
             v.setTextColor(R.id.bal, o.optBoolean("neg") ? Color.parseColor("#FF8A80") : Color.WHITE);
             String t = lines(o.optJSONArray("t"), "\n", 3);
             int more = o.optInt("tx");
-            v.setTextViewText(R.id.today, t.isEmpty() ? "Rien aujourd’hui ✨" : t + (more > 0 ? "\n+" + more + " autre" + (more > 1 ? "s" : "") : ""));
+            v.setTextViewText(R.id.today, t.isEmpty() ? "Rien de prévu aujourd’hui" : t + (more > 0 ? "\n+ " + more + " autre" + (more > 1 ? "s" : "") : ""));
             String tm = o.optString("tm");
             v.setTextViewText(R.id.tomorrow, "Demain · " + (tm.isEmpty() ? "rien" : tm));
             v.setTextViewText(R.id.budget, o.optString("st"));
-            v.setTextColor(R.id.budget, o.optBoolean("warn") ? Color.parseColor("#FF8A80") : Color.parseColor("#D8E6E7"));
+            v.setTextColor(R.id.budget, o.optBoolean("warn") ? Color.parseColor("#FF8A80") : Color.parseColor("#B9CCCE"));
         } catch (Exception e) {
             v.setTextViewText(R.id.today, "Ouvre l’appli pour actualiser.");
         }

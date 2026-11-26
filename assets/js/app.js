@@ -156,8 +156,8 @@ function agenda(){if(wideAg())return bigAgenda();
  const y=S.cy,m=S.cm,first=new Date(y,m,1,12),off=(first.getDay()+6)%7,dim=new Date(y,m+1,0).getDate();
  let g=['L','M','M','J','V','S','D'].map((d,k)=>'<div class="h'+(k>4?' we':'')+'">'+d+'</div>').join('');
  for(let i=0;i<off;i++)g+='<div></div>';
- for(let d=1;d<=dim;d++){const s=y+'-'+pad(m+1)+'-'+pad(d),em=dayEvents(s).filter(e=>!e.dn).map(e=>e.e),wk=(off+d-1)%7>4;
-  g+='<button class="'+(s==TD?'td ':'')+(s==S.sel?'sel ':'')+(s<TD?'past ':'')+(wk?'we ':'')+(em.length?'has':'')+'" onclick="S.sel=\''+s+'\';render()" aria-label="'+P(s).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+(em.length?', '+em.length+' élément'+(em.length>1?'s':''):'')+'"><span>'+d+'</span><i>'+em.slice(0,2).join('')+(em.length>2?'<u>+'+(em.length-2)+'</u>':'')+'</i></button>'}
+ for(let d=1;d<=dim;d++){const s=y+'-'+pad(m+1)+'-'+pad(d),E=dayEvents(s).filter(e=>!e.dn),em=E.map(e=>e.e),wk=false,dots=E.slice(0,3).map(e=>'<s style="background:'+(TY[e.k]?TY[e.k][1]:e.k=='ho'?'#0e9f6e':e.k=='debt'?'#e0751f':e.a>0?'#0e9f6e':'var(--mu)')+'"></s>').join('');
+  g+='<button class="'+(s==TD?'td ':'')+(s==S.sel?'sel ':'')+(s<TD?'past ':'')+(wk?'we ':'')+(em.length?'has':'')+'" onclick="S.sel=\''+s+'\';render()" aria-label="'+P(s).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+(em.length?', '+em.length+' élément'+(em.length>1?'s':''):'')+'"><span>'+d+'</span><i>'+dots+'</i></button>'}
  // planning : le jour choisi puis les 14 jours suivants qui ont quelque chose
  let pl='';const st=S.sel||TD;
  for(let k=0;k<15;k++){const s=dayAdd(st,k),E=dayEvents(s);if(k&&!E.length)continue;
@@ -528,9 +528,9 @@ function widgetData(){const ln=d=>dayEvents(d).filter(e=>!e.dn).map(e=>e.e+' '+e
   low:f&&f.B!==null&&f.low<0?eur(f.low)+' le '+dl(f.lowDay):null,poche:(()=>{const p=pocheStats();return p.bud||p.sp?eur(p.left)+' sur '+eur(p.bud):null})(),warn:!!(f&&f.def>0.005),at:pad(n.getHours())+':'+pad(n.getMinutes())}}
 // Widget : version courte (date, solde arrondi, 3 lignes max aujourd'hui, demain en une ligne, 3 chiffres)
 function widgetShort(){const e0=v=>(v<0?'−':'')+Math.abs(Math.round(v)).toLocaleString('fr-FR')+' €',f=salRec()?forecast():null,B=balNow(),p=pocheStats();
- const ln=d=>dayEvents(d).filter(e=>!e.dn).map(e=>e.e+' '+e.t),T=ln(TD),D=ln(dayAdd(TD,1)),dd=P(TD).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
- const st=[];if(p.bud||p.sp)st.push('🎉 '+e0(p.left));if(f)st.push('💼 '+(f.D<=0?'auj.':f.D+' j'));if(f&&f.B!==null)st.push((f.def?'⚠️ ':'📉 ')+e0(f.low));
- return {d:dd.charAt(0).toUpperCase()+dd.slice(1),bal:B===null?'':e0(B),neg:B!==null&&B<0,t:T.slice(0,3),tx:Math.max(0,T.length-3),tm:D.length?D[0]+(D.length>1?' +'+(D.length-1):''):'',st:st.join('   '),warn:!!(f&&f.def)}}
+ const cl=t=>String(t).replace(/^[^\p{L}\p{N}]+/u,'').trim(),ln=d=>dayEvents(d).filter(e=>!e.dn&&e.k!='ho').map(e=>e.e+'  '+cl(e.t)),T=ln(TD),D=ln(dayAdd(TD,1)),dd=P(TD).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+ const st=[];if(p.bud||p.sp)st.push('Poche  '+e0(p.left));if(f)st.push('Salaire  '+(f.D<=0?'auj.':'J−'+f.D));if(f&&f.B!==null)st.push((f.def?'⚠ ':'')+'Point bas  '+e0(f.low));
+ return {d:dd.charAt(0).toUpperCase()+dd.slice(1),bal:B===null?'':e0(B),neg:B!==null&&B<0,t:T.slice(0,3),tx:Math.max(0,T.length-3),tm:D.length?cl(D[0].replace(/^\S+\s+/,''))+(D.length>1?' +'+(D.length-1):''):'',st:st.join('\n'),warn:!!(f&&f.def)}}
 function wpush(){try{if(window.AgendaNative)AgendaNative.update(JSON.stringify(widgetData()))}catch(e){}clearTimeout(wpush.t);wpush.t=setTimeout(nsched,400)}
 // Notifications programmées dans le téléphone par l'appli Android (8 jours d'avance, recalculées à chaque ouverture/synchro)
 async function nsched(){try{if(!window.AgendaNative||!AgendaNative.schedule)return;const m=await import(new URL('scripts/rappels-calc.mjs',document.baseURI).href);const L=m.plan(snap(),TD,8).map(x=>({at:x.at,title:x.title,body:x.body,tag:x.tag}));AgendaNative.schedule(JSON.stringify(L));return L.length}catch(e){console.warn("nsched",e)}}
