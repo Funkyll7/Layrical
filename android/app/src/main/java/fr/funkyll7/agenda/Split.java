@@ -232,7 +232,7 @@ public class Split extends AccessibilityService {
         final Context c = ctx.getApplicationContext();
         final Handler h = new Handler(Looper.getMainLooper());
         LOG.setLength(0);
-        log("Agenda écran partagé v7 · " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE);
+        log("Agenda écran partagé v8 · " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE);
         if (bubble && Bubble.canShow(c)) Bubble.show(c);
 
         // 1. Waze
@@ -342,7 +342,7 @@ public class Split extends AccessibilityService {
         // au-delà du bord (Android n'interdit que les coordonnées négatives).
         float to = dm.heightPixels + 300 + 150 * n;
         // 3 manières : lente avec appui long, jet rapide, puis reprise de la fenêtre déjà garée en bas
-        long hold = n == 1 ? 150 : 1000, move = n == 1 ? 300 : 1500, end = 1500;
+        long hold = n == 1 ? 150 : 1000, move = n == 1 ? 300 : 1500, end = 2000;   // on reste immobile sous l'écran, puis on lâche
         log("4. essai " + (n + 1) + (n == 1 ? " (jet rapide)" : n == 2 ? " (reprise en bas)" : " (lent)") + (seen ? ", Waze " + r.toShortString() : ", position mesurée")
                 + " : appui " + hold + " ms sur " + (int) x + "," + (int) y + " → " + (int) to + " (écran " + dm.widthPixels + "×" + dm.heightPixels + ")");
         drag(s, x, y, to, hold, move, end);
@@ -350,7 +350,7 @@ public class Split extends AccessibilityService {
     }
 
     /**
-     * Appui maintenu, glissement vertical, puis on reste appuyé à l'arrivée avant de lâcher
+     * Appui maintenu, glissement vertical, puis on reste appuyé SANS BOUGER à l'arrivée avant de lâcher
      * (Honor affiche « Relâcher pour ajouter une application » quand la fenêtre touche le bas).
      */
     private static void drag(Split s, float x, float from, float to, long hold, long move) { drag(s, x, from, to, hold, move, 700); }
@@ -374,7 +374,6 @@ public class Split extends AccessibilityService {
                             if (s3 == null) return;
                             Path e = new Path();
                             e.moveTo(x, to);
-                            for (int k = 0; k < 3; k++) { e.lineTo(x + 6, to - 35); e.lineTo(x, to); }
                             boolean ok = s3.dispatchGesture(new GestureDescription.Builder()
                                     .addStroke(slide.continueStroke(e, 0, endHold, false)).build(), new GestureResultCallback() {
                                 @Override public void onCompleted(GestureDescription g3) { log("   geste terminé"); }
