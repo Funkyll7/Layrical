@@ -75,11 +75,8 @@ const CT_EMO=['🏠','👨‍👩‍👧','❤️','👫','💼','🏋️','🩺
 const wazeUrl=a=>'https://waze.com/ul?q='+encodeURIComponent(a)+'&navigate=yes';
 const gmapsUrl=a=>'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(a);
 function contactsCard(){const L=(S.contacts||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'fr'));
- return '<h2>📍 Mes adresses</h2><div class="card">'+(L.length>8?'<input id="ct_q" placeholder="Chercher un nom…" oninput="ctFilter(this.value)" style="margin:0 0 10px">':'')
- +'<div class="ctg">'+L.map(c=>'<button class="ct" data-n="'+esc(BankNorm(c.name))+'" onclick="goF(\''+c.id+'\')"><span>'+(c.emo||'📍')+'</span><b>'+esc(c.name)+'</b><small>'+esc(c.addr)+'</small></button>').join('')
- +'<button class="ct add" onclick="ctF()"><span>＋</span><b>Ajouter</b><small>une adresse</small></button></div></div>'}
-const BankNorm=s=>String(s||'').normalize('NFD').replace(/\p{M}/gu,'').toLowerCase();
-function ctFilter(q){q=BankNorm(q);document.querySelectorAll('.ctg .ct[data-n]').forEach(b=>b.style.display=b.dataset.n.includes(q)?'':'none')}
+ return '<h2>📍 Mes adresses</h2><div class="ctr">'+L.map(c=>'<button class="cc" onclick="goF(\''+c.id+'\')" aria-label="Aller chez '+esc(c.name)+'"><span>'+(c.emo||'📍')+'</span><b>'+esc(c.name)+'</b></button>').join('')
+ +'<button class="cc add" onclick="ctF()" aria-label="Ajouter une adresse"><span>＋</span><b>Ajouter</b></button></div>'}
 function goF(id){const c=(S.contacts||[]).find(x=>x.id==id);if(!c)return;
  sheet('<h2 style="margin-top:0">'+(c.emo||'📍')+' '+esc(c.name)+'</h2><p style="margin:0 0 14px;color:var(--mu)">'+esc(c.addr)+'</p>'
  +'<a class="go waze" href="'+wazeUrl(c.addr)+'" target="_blank" rel="noopener" onclick="setTimeout(closeF,300)">🚗 Y aller avec Waze</a>'
@@ -96,14 +93,27 @@ function ctSave(id){const n=$('#c_n').value.trim(),a=$('#c_a').value.trim().repl
  if(!n||!a){alert('Indique un nom et une adresse.');return}S.contacts=S.contacts||[];const c=id?S.contacts.find(x=>x.id==id):null;
  if(c)Object.assign(c,{name:n,addr:a,tel:t,emo:em});else S.contacts.push({id:uid(),name:n,addr:a,tel:t,emo:em});save();closeF();render()}
 function ctDel(id){const c=(S.contacts||[]).find(x=>x.id==id);if(!c||!confirm('Supprimer l’adresse de « '+c.name+' » ?'))return;S.contacts=S.contacts.filter(x=>x.id!=id);save();closeF();render()}
+function todayCard(){const T=dayEvents(TD).filter(e=>!e.dn),D=dayEvents(dayAdd(TD,1)).filter(e=>!e.dn);
+ const li=L=>L.map(e=>'<div class="tl"><span class="tl-e">'+e.e+'</span><b>'+esc(e.t)+'</b>'+(e.a?'<em class="'+(e.a<0?'neg':'pos')+'">'+(e.a>0?'+':'−')+eur(Math.abs(e.a))+'</em>':'')
+  +(e.k=='rappel'?'<button class="x dn" aria-label="Marquer comme fait" title="C’est fait" onclick="doneIt(\''+e.id+'\',\''+(L===T?TD:dayAdd(TD,1))+'\')">✓</button>':'')+'</div>').join('');
+ return '<h2>📅 Aujourd’hui</h2><div class="card tday">'+(T.length?li(T):'<div class="empty" style="padding:6px 0">Rien de prévu aujourd’hui ✨</div>')
+  +'<div class="tl-h">Demain</div>'+(D.length?li(D):'<div class="empty" style="padding:4px 0 2px">Rien de prévu</div>')+'</div>'}
+function more(key,n,html){let o=false;try{o=localStorage.getItem('more-'+key)=='1'}catch(e){}
+ return '<details class="more"'+(o?' open':'')+' ontoggle="try{localStorage.setItem(\'more-'+key+'\',this.open?\'1\':\'0\')}catch(e){}"><summary>'+n+'</summary>'+html+'</details>'}
 function home(){
  let ev=[];for(let i=0;i<=30;i++){const d=P(TD);d.setDate(d.getDate()+i);const s=iso(d);on(s).forEach(it=>{if(!isDone(it,s))ev.push({s,it})});dueOn(s).forEach(dt=>ev.push({s,dt}));const h=holName(s);if(h)ev.push({s,h})}
  const ren=S.items.filter(i=>i.type=='renouv')
   .map(i=>({i,s:next(i)})).filter(o=>diff(o.s)<=60&&diff(o.s)>=0).sort((a,b)=>a.s<b.s?-1:1);
  const tx=monthAll(+TD.slice(0,4),+TD.slice(5,7)-1).filter(t=>t.date<=TD),inc=tx.filter(t=>t.amt>0).reduce((a,t)=>a+t.amt,0),out=tx.filter(t=>t.amt<0).reduce((a,t)=>a+t.amt,0);
- return '<h1>Bonjour 👋'+appVer()+'</h1>'+alerts()+contactsCard()+'<div class="sum">'+balCard()+'<div><small>Revenus de '+MO[+TD.slice(5,7)-1]+'</small><b>'+eur(inc)+'</b></div><div><small>Dépenses de '+MO[+TD.slice(5,7)-1]+'</small><b>'+eur(Math.abs(out))+'</b></div></div>'+fcCard()
- +'<h2>À surveiller (60 jours)</h2><div class="card">'+(ren.length?ren.map(o=>itemRow(o.i,o.s)).join(''):'<div class="empty">Aucune échéance proche.</div>')+'</div>'
- +'<h2>Les 30 prochains jours</h2><div class="card">'+(ev.length?ev.map(e=>e.h?holRow(e.s,e.h):e.dt?debtRow(e.dt):itemRow(e.it,e.s)).join(''):'<div class="empty">Rien de prévu. Appuie sur + pour ajouter.</div>')+'</div><h2>Données</h2><div class="card"><div class="row"><div class="t"><b>Sauvegarde</b><small>Exporter ou importer tout en JSON</small></div><button class="pill" style="border:0" onclick="bk()">Ouvrir</button></div><div class="row"><div class="t"><b>Synchro GitHub</b><small>Dépôt privé et token</small></div><button class="pill" style="border:0" onclick="gs()">Régler</button></div><div class="row"><div class="t"><b>🔔 Notifications</b><small>'+(window.AgendaNative?'Gérées par l’appli':notifOn()?'Activées sur cet appareil':'Rappels sur ton téléphone')+'</small></div><button class="pill" style="border:0" onclick="notifF()">Régler</button></div>'+(window.AgendaNative?'':'<div class="row"><div class="t"><b>📲 Appli Android + widget</b><small>Le résumé du jour et ton budget sur l’écran d’accueil</small></div><a class="pill" style="border:0;text-decoration:none" href="https://github.com/Funkyll7/Layrical/releases/latest/download/agenda.apk" target="_blank" rel="noopener">Télécharger</a></div>')+'</div>'}
+ const hr=new Date().getHours(),hello=hr<5||hr>=18?'Bonsoir':'Bonjour',jour=P(TD).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+ const up=ev.filter(e=>e.s>dayAdd(TD,1)),row=e=>e.h?holRow(e.s,e.h):e.dt?debtRow(e.dt):itemRow(e.it,e.s);
+ return '<div class="hd"><h1>'+hello+' 👋</h1><div class="hd-s">'+jour.charAt(0).toUpperCase()+jour.slice(1)+appVer()+'</div></div>'+alerts()
+ +'<div class="sum">'+balCard()+'<div><small>Revenus de '+MO[+TD.slice(5,7)-1]+'</small><b>'+eur(inc)+'</b></div><div><small>Dépenses de '+MO[+TD.slice(5,7)-1]+'</small><b>'+eur(Math.abs(out))+'</b></div></div>'
+ +todayCard()+fcCard(true)
+ +(ren.length?'<h2>⏳ À surveiller</h2><div class="card">'+ren.map(o=>itemRow(o.i,o.s)).join('')+'</div>':'')
+ +'<h2>🗓️ À venir (30 jours)</h2><div class="card">'+(up.length?up.slice(0,5).map(row).join('')+(up.length>5?more('up','Voir les '+(up.length-5)+' suivants',up.slice(5).map(row).join('')):''):'<div class="empty">Rien de prévu. Appuie sur + pour ajouter.</div>')+'</div>'
+ +contactsCard()
+ +'<h2>Données</h2><div class="card"><div class="row"><div class="t"><b>Sauvegarde</b><small>Exporter ou importer tout en JSON</small></div><button class="pill" style="border:0" onclick="bk()">Ouvrir</button></div><div class="row"><div class="t"><b>Synchro GitHub</b><small>Dépôt privé et token</small></div><button class="pill" style="border:0" onclick="gs()">Régler</button></div><div class="row"><div class="t"><b>🔔 Notifications</b><small>'+(window.AgendaNative?'Gérées par l’appli':notifOn()?'Activées sur cet appareil':'Rappels sur ton téléphone')+'</small></div><button class="pill" style="border:0" onclick="notifF()">Régler</button></div>'+(window.AgendaNative?'':'<div class="row"><div class="t"><b>📲 Appli Android + widget</b><small>Le résumé du jour et ton budget sur l’écran d’accueil</small></div><a class="pill" style="border:0;text-decoration:none" href="https://github.com/Funkyll7/Layrical/releases/latest/download/agenda.apk" target="_blank" rel="noopener">Télécharger</a></div>')+'</div>'}
 function agenda(){if(wideAg())return bigAgenda();
  const y=S.cy,m=S.cm,first=new Date(y,m,1,12),off=(first.getDay()+6)%7,dim=new Date(y,m+1,0).getDate();
  let g=['L','M','M','J','V','S','D'].map(d=>'<div class="h">'+d+'</div>').join('');
@@ -309,7 +319,7 @@ function budgetCharts(){const c=planCalc(),y0=+TD.slice(0,4),m0=+TD.slice(5,7)-1
  const parts=[['🛒 Logement et quotidien',c.qu+c.fx],['🔁 Abonnements',c.ab],['🔒 Crédits',c.cr],['🎉 Argent de poche',c.amt('poche')],['📈 Investissement',c.amt('invest')],['🐷 Épargne',c.amt('pepin')]];
  return '<h2>📊 Où va ton argent chaque mois</h2><div class="card fc">'+(c.rev>0?'<p>Sur <b>'+eur(c.rev)+'</b> de revenu'+(c.reste<0?', il manque <b class="neg">'+eur(-c.reste)+'</b> chaque mois :':' :')+'</p>':'')+segBar(parts)+'<small>Charges fixes, puis ta répartition (« Mon budget du mois »). Touche une couleur pour le détail.</small></div>'
  +'<h2>📈 Revenus et dépenses par mois</h2><div class="card fc">'+colChart(G)+'<small>En clair : les 2 prochains mois, en prévision. Dépenses = mouvements, crédits, abonnements, quotidien daté et budget du quotidien sans date (hors épargne et investissements).</small></div>'}
-function fcCard(){const r=salRec();
+function fcCard(compact){const r=salRec();
  if(!r)return '<div class="card fc" role="button" tabindex="0" style="cursor:pointer" onclick="salF()"><b>💼 Mon salaire</b><small>Touche ici pour indiquer ton salaire, le jour où tu le reçois et ton découvert à ne pas dépasser : l’appli te dira si tu tiens jusqu’au prochain.</small></div>';
  const f=forecast(),hd='<div class="pl-l"><b>💼 Salaire : '+eur(r.amt)+' le '+r.day+' du mois</b><button class="pill" style="border:0;cursor:pointer" onclick="salF()">Modifier</button></div>';
  if(!f)return '<div class="card fc">'+hd+'</div>';
@@ -324,8 +334,9 @@ function fcCard(){const r=salRec();
   +(f.cutI>0.005?'<li>prends <b>'+eur(f.cutI)+'</b> sur ton investissement S&P 500 de ce mois</li>':'')
   +(f.cutE>0.005?'<li>utilise <b>'+eur(f.cutE)+'</b> de ton épargne</li>':'')+'</ul>'
   +(f.rest>0.005?'<p class="neg"><b>Même ainsi, il manquerait '+eur(f.rest)+'</b> : décale une dépense ou un paiement.</p>':'')}
- if(f.B!==null)body+=fcChart(f);body+=loanHTML(f);if(f.B!==null&&f.D<=1)body+='<button class="go" style="margin-top:8px" onclick="savF()">🐷 C’est la veille du salaire : mettre de côté</button>';
- return '<div class="card fc">'+hd+body+'<small>Compte ton solde, tes revenus et dépenses fixes, crédits, abonnements, dépenses à venir, et ton budget du quotidien et réparti sur les jours ; l’argent de poche sort en une fois au salaire.</small></div>'}
+ let det=(f.B!==null?fcChart(f):'')+loanHTML(f)+'<small>Compte ton solde, tes revenus et dépenses fixes, crédits, abonnements, dépenses à venir, et ton budget du quotidien et réparti sur les jours ; l’argent de poche sort en une fois au salaire.</small>';
+ body+=compact?more('fc','Voir le détail : courbe, dépenses, crédits',det):det;if(f.B!==null&&f.D<=1)body+='<button class="go" style="margin-top:8px" onclick="savF()">🐷 C’est la veille du salaire : mettre de côté</button>';
+ return '<div class="card fc">'+hd+body+'</div>'}
 // ---------- S&P 500 : cours mis à jour chaque jour de bourse dans marche.json ----------
 let MK=null;
 function mkLoad(){fetch('marche.json?'+TD,{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.spx&&j.spx.length>1){MK=j;render()}}).catch(()=>{})}

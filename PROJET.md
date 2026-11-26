@@ -80,3 +80,6 @@ Bouton ✓ sur les rappels (`doneIt`) : la date de l'occurrence est ajoutée à 
 
 ## Mes adresses (Waze)
 `S.contacts = [{id,name,addr,tel,emo}]`, carte « 📍 Mes adresses » sur l'Accueil (recherche au-delà de 8). Toucher un contact ouvre une fenêtre de confirmation : « 🚗 Y aller avec Waze » (`https://waze.com/ul?q=<adresse>&navigate=yes`, ouvert par l'appli Waze), Google Maps en secours, appel si un numéro est enregistré, modifier/supprimer.
+
+## Accueil (ordre et règles d'interface)
+Du plus utile au moins urgent : en-tête (Bonjour/Bonsoir, date, version de l'appli) → alertes (seulement s'il y en a) → solde + revenus/dépenses → « 📅 Aujourd'hui » (et demain, rappels cochables ✓) → salaire (résumé ; courbe, dépenses et crédits repliés dans « Voir le détail », état retenu) → « À surveiller » (seulement si non vide) → « À venir » (5 lignes + « Voir les N suivants ») → « 📍 Mes adresses » (rangée d'icônes défilante) → Données. Sur téléphone (< 1000 px), barre fixe en haut : état de la synchro à gauche, 💰 budget et 📝 bloc-notes à droite (plus de boutons flottants posés sur le contenu) ; cibles tactiles ≥ 40-44 px.
