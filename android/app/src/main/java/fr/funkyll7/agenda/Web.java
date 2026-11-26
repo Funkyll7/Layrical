@@ -135,6 +135,19 @@ final class Web {
             });
         }
 
+        /** Écran partagé Waze + musique : vrai si le service d'accessibilité est activé. */
+        @JavascriptInterface
+        public boolean splitReady() { return Split.ready(); }
+
+        @JavascriptInterface
+        public void splitSettings() { Split.openSettings(c); }
+
+        /** YouTube Music en haut (¼), Waze en bas (¾). */
+        @JavascriptInterface
+        public void wazeSplit(String url, boolean bubble) {
+            new Handler(Looper.getMainLooper()).post(() -> Split.go(c, url, bubble));
+        }
+
         /** Fin de la mise à jour en arrière-plan. */
         @JavascriptInterface
         public void done() {

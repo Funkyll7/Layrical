@@ -2,4 +2,6 @@
 <resources>
     <string name="widget_name">Agenda : aujourd’hui</string>
     <string name="widget_desc">Ce qui arrive aujourd’hui et ton budget</string>
+    <string name="split_name">Agenda : écran partagé Waze + musique</string>
+    <string name="split_desc">Sert uniquement au bouton « Waze + musique » : ouvre YouTube Music en haut (un quart de l’écran) et Waze en bas, pour que la musique continue sans YouTube Music Premium. Ne lit ni ne garde rien de ce qui est à l’écran.</string>
 </resources>
