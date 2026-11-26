@@ -134,3 +134,11 @@ button.go:disabled{opacity:.45;cursor:not-allowed}
 .row.done .t b{text-decoration:line-through;opacity:.6}.x.dn{color:var(--mu)}.x.dn.on{color:var(--c3,#1baf7a);font-weight:700}
 
 h1 .ver{display:inline-block;vertical-align:middle;margin-left:10px;font-size:12px;font-weight:600;color:var(--mu);background:var(--ln);border-radius:999px;padding:3px 9px;letter-spacing:0}
+
+.ctg{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.ct{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:10px 12px;border-radius:14px;border:1px solid var(--ln);background:var(--bg);color:var(--ink);cursor:pointer;font:inherit;min-width:0}
+.ct span{font-size:20px;line-height:1.2}.ct b{font-size:14px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ct small{font-size:11.5px;color:var(--mu);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ct.add{border-style:dashed;background:transparent}.ct.add span{color:var(--ac)}
+a.go{display:block;text-align:center;text-decoration:none;box-sizing:border-box}a.go.waze{background:#33ccff;color:#06283d}a.go.alt{margin-top:8px;background:var(--ln);color:var(--ink)}
+.ctemo{display:flex;flex-wrap:wrap;gap:6px}.ctemo button{font-size:20px;width:42px;height:42px;border-radius:12px;border:1px solid var(--ln);background:var(--bg);cursor:pointer}.ctemo button.on{border-color:var(--ac);box-shadow:0 0 0 2px var(--acs)}

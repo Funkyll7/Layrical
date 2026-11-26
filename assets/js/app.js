@@ -14,8 +14,8 @@ const dl=s=>P(s).toLocaleDateString('fr-FR',Object.assign({weekday:'short',day:'
 const diff=s=>Math.round((P(s)-P(TD))/864e5);
 const inj=n=>n==0?"Aujourd’hui":n==1?'Demain':'Dans '+n+' j';
 let S={items:[],tx:[],debts:[],rec:[],sav:[],inv:[],subs:[],pushKey:null,notif:{hour:8},bal:null,plan:{inc:'',p:{poche:50,invest:25,pepin:25}},bud:{},ts:0,tab:'home',sel:TD,cy:+TD.slice(0,4),cm:+TD.slice(5,7)-1,by:+TD.slice(0,4),bm:+TD.slice(5,7)-1};
-let SYNC='local';const apply=o=>{S.items=o.items||[];S.tx=o.tx||[];S.debts=o.debts||[];S.rec=o.rec||[];S.bal=o.bal||null;S.notes=o.notes||'';S.plan=o.plan||{inc:'',p:{poche:50,invest:25,pepin:25}};S.sav=o.sav||[];S.inv=o.inv||[];S.subs=o.subs||[];S.pushKey=o.pushKey||null;S.notif=o.notif||{hour:8};S.bud=o.bud||{};S.poche=o.poche||{tx:[],round:{on:true,x:1}};S.card=o.card||[];S.ts=o.ts||0};try{const r=localStorage.getItem('agenda-perso');if(r)apply(JSON.parse(r))}catch(e){}
-const snap=()=>({items:S.items,tx:S.tx,debts:S.debts,rec:S.rec,bal:S.bal,notes:S.notes||'',plan:S.plan,sav:S.sav,inv:S.inv,subs:S.subs,pushKey:S.pushKey,notif:S.notif,bud:S.bud,poche:S.poche,card:S.card,ts:S.ts});
+let SYNC='local';const apply=o=>{S.items=o.items||[];S.tx=o.tx||[];S.debts=o.debts||[];S.rec=o.rec||[];S.bal=o.bal||null;S.notes=o.notes||'';S.plan=o.plan||{inc:'',p:{poche:50,invest:25,pepin:25}};S.sav=o.sav||[];S.inv=o.inv||[];S.subs=o.subs||[];S.pushKey=o.pushKey||null;S.notif=o.notif||{hour:8};S.bud=o.bud||{};S.poche=o.poche||{tx:[],round:{on:true,x:1}};S.card=o.card||[];S.contacts=o.contacts||[];S.ts=o.ts||0};try{const r=localStorage.getItem('agenda-perso');if(r)apply(JSON.parse(r))}catch(e){}
+const snap=()=>({items:S.items,tx:S.tx,debts:S.debts,rec:S.rec,bal:S.bal,notes:S.notes||'',plan:S.plan,sav:S.sav,inv:S.inv,subs:S.subs,pushKey:S.pushKey,notif:S.notif,bud:S.bud,poche:S.poche,card:S.card,contacts:S.contacts,ts:S.ts});
 let ERR='';const badge=()=>{const e=$('#sy');e.textContent=SYNC=='ok'?'☁️ Synchronisé':SYNC=='sav'?'☁️ Envoi…':SYNC=='err'?'⚠️ '+(ERR||'Hors ligne'):'📱 Local · touche pour régler la synchro';e.onclick=()=>gs();e.style.cursor='pointer'};
 const lsave=()=>{try{localStorage.setItem('agenda-perso',JSON.stringify(snap()))}catch(e){}};
 const save=()=>{S.ts=Date.now();lsave();if(GH.token&&GH.repo){SYNC='sav';badge();clearTimeout(tm);tm=setTimeout(push,1200)}};
@@ -70,12 +70,38 @@ function delBal(){S.bal=null;save();closeF();render()}
 function stopRec(id){const r=S.rec.find(x=>x.id==id);if(!r||!confirm('Arrêter « '+r.label+' » ? Les mois passés restent dans l’historique.'))return;if(r.start>TD)S.rec=S.rec.filter(x=>x!==r);else r.end=TD;save();render()}
 function txRow(t){const fut=t.date>TD;return '<div class="row"><div class="t"><b>'+(t.rec?'🔁 ':'')+esc(t.label)+'</b><small>'+dl(t.date)+' · '+t.cat+' · '+(t.rec?'fixe, chaque mois':'occasionnelle')+'</small>'+(fut?'<div style="margin-top:6px"><span class="pill w">À venir</span></div>':'')+'</div><b class="'+(t.amt>0?'pos':'')+'" style="flex:none">'+(t.amt>0?'+':'')+eur(t.amt)+'</b>'+'<button class="x" aria-label="Modifier" onclick="openEdit(\''+(t.rec?'rec':'tx')+'\',\''+(t.rec?t.rid:t.id)+'\')">✎</button>'+(t.rec?'<span style="width:34px"></span>':'<button class="x" aria-label="Supprimer" onclick="delTx(\''+t.id+'\')">✕</button>')+'</div>'}
 const appVer=()=>{try{return window.AgendaNative&&AgendaNative.version?'<small class="ver">Appli '+esc(AgendaNative.version())+'</small>':''}catch(e){return ''}};
+// ===== Mes adresses : un contact, une adresse, Waze en un geste =====
+const CT_EMO=['🏠','👨‍👩‍👧','❤️','👫','💼','🏋️','🩺','✂️','🛒','🎓','⭐'];
+const wazeUrl=a=>'https://waze.com/ul?q='+encodeURIComponent(a)+'&navigate=yes';
+const gmapsUrl=a=>'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(a);
+function contactsCard(){const L=(S.contacts||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+ return '<h2>📍 Mes adresses</h2><div class="card">'+(L.length>8?'<input id="ct_q" placeholder="Chercher un nom…" oninput="ctFilter(this.value)" style="margin:0 0 10px">':'')
+ +'<div class="ctg">'+L.map(c=>'<button class="ct" data-n="'+esc(BankNorm(c.name))+'" onclick="goF(\''+c.id+'\')"><span>'+(c.emo||'📍')+'</span><b>'+esc(c.name)+'</b><small>'+esc(c.addr)+'</small></button>').join('')
+ +'<button class="ct add" onclick="ctF()"><span>＋</span><b>Ajouter</b><small>une adresse</small></button></div></div>'}
+const BankNorm=s=>String(s||'').normalize('NFD').replace(/\p{M}/gu,'').toLowerCase();
+function ctFilter(q){q=BankNorm(q);document.querySelectorAll('.ctg .ct[data-n]').forEach(b=>b.style.display=b.dataset.n.includes(q)?'':'none')}
+function goF(id){const c=(S.contacts||[]).find(x=>x.id==id);if(!c)return;
+ sheet('<h2 style="margin-top:0">'+(c.emo||'📍')+' '+esc(c.name)+'</h2><p style="margin:0 0 14px;color:var(--mu)">'+esc(c.addr)+'</p>'
+ +'<a class="go waze" href="'+wazeUrl(c.addr)+'" target="_blank" rel="noopener" onclick="setTimeout(closeF,300)">🚗 Y aller avec Waze</a>'
+ +'<a class="go alt" href="'+gmapsUrl(c.addr)+'" target="_blank" rel="noopener" onclick="setTimeout(closeF,300)">🗺️ Plutôt Google Maps</a>'
+ +(c.tel?'<a class="go alt" href="tel:'+esc(c.tel.replace(/[^\d+]/g,''))+'">📞 Appeler '+esc(c.tel)+'</a>':'')
+ +'<div style="display:flex;gap:8px;margin-top:10px"><button class="pill" style="border:0;cursor:pointer" onclick="ctF(\''+c.id+'\')">✎ Modifier</button><button class="pill" style="border:0;cursor:pointer" onclick="ctDel(\''+c.id+'\')">✕ Supprimer</button></div>')}
+function ctF(id){const c=id?(S.contacts||[]).find(x=>x.id==id):null,e=c&&c.emo||'📍';
+ sheet('<h2 style="margin-top:0">'+(c?'Modifier l’adresse':'📍 Nouvelle adresse')+'</h2><label>Nom</label><input id="c_n" value="'+esc(c?c.name:'')+'" placeholder="Ex. Maman, Salle de sport">'
+ +'<label>Adresse</label><textarea id="c_a" rows="2" placeholder="Ex. 12 rue de la Paix, 75002 Paris">'+esc(c?c.addr:'')+'</textarea>'
+ +'<label>Téléphone (facultatif)</label><input id="c_t" type="tel" value="'+esc(c&&c.tel||'')+'">'
+ +'<label>Icône</label><div class="ctemo">'+['📍',...CT_EMO].map(x=>'<button type="button" class="'+(x==e?'on':'')+'" onclick="[...this.parentNode.children].forEach(b=>b.classList.toggle(\'on\',b==this))">'+x+'</button>').join('')+'</div>'
+ +'<button class="go" onclick="ctSave(\''+(id||'')+'\')">Enregistrer</button>')}
+function ctSave(id){const n=$('#c_n').value.trim(),a=$('#c_a').value.trim().replace(/\s*\n\s*/g,', '),t=$('#c_t').value.trim(),em=($('.ctemo button.on')||{}).textContent||'📍';
+ if(!n||!a){alert('Indique un nom et une adresse.');return}S.contacts=S.contacts||[];const c=id?S.contacts.find(x=>x.id==id):null;
+ if(c)Object.assign(c,{name:n,addr:a,tel:t,emo:em});else S.contacts.push({id:uid(),name:n,addr:a,tel:t,emo:em});save();closeF();render()}
+function ctDel(id){const c=(S.contacts||[]).find(x=>x.id==id);if(!c||!confirm('Supprimer l’adresse de « '+c.name+' » ?'))return;S.contacts=S.contacts.filter(x=>x.id!=id);save();closeF();render()}
 function home(){
  let ev=[];for(let i=0;i<=30;i++){const d=P(TD);d.setDate(d.getDate()+i);const s=iso(d);on(s).forEach(it=>{if(!isDone(it,s))ev.push({s,it})});dueOn(s).forEach(dt=>ev.push({s,dt}));const h=holName(s);if(h)ev.push({s,h})}
  const ren=S.items.filter(i=>i.type=='renouv')
   .map(i=>({i,s:next(i)})).filter(o=>diff(o.s)<=60&&diff(o.s)>=0).sort((a,b)=>a.s<b.s?-1:1);
  const tx=monthAll(+TD.slice(0,4),+TD.slice(5,7)-1).filter(t=>t.date<=TD),inc=tx.filter(t=>t.amt>0).reduce((a,t)=>a+t.amt,0),out=tx.filter(t=>t.amt<0).reduce((a,t)=>a+t.amt,0);
- return '<h1>Bonjour 👋'+appVer()+'</h1>'+alerts()+'<div class="sum">'+balCard()+'<div><small>Revenus de '+MO[+TD.slice(5,7)-1]+'</small><b>'+eur(inc)+'</b></div><div><small>Dépenses de '+MO[+TD.slice(5,7)-1]+'</small><b>'+eur(Math.abs(out))+'</b></div></div>'+fcCard()
+ return '<h1>Bonjour 👋'+appVer()+'</h1>'+alerts()+contactsCard()+'<div class="sum">'+balCard()+'<div><small>Revenus de '+MO[+TD.slice(5,7)-1]+'</small><b>'+eur(inc)+'</b></div><div><small>Dépenses de '+MO[+TD.slice(5,7)-1]+'</small><b>'+eur(Math.abs(out))+'</b></div></div>'+fcCard()
  +'<h2>À surveiller (60 jours)</h2><div class="card">'+(ren.length?ren.map(o=>itemRow(o.i,o.s)).join(''):'<div class="empty">Aucune échéance proche.</div>')+'</div>'
  +'<h2>Les 30 prochains jours</h2><div class="card">'+(ev.length?ev.map(e=>e.h?holRow(e.s,e.h):e.dt?debtRow(e.dt):itemRow(e.it,e.s)).join(''):'<div class="empty">Rien de prévu. Appuie sur + pour ajouter.</div>')+'</div><h2>Données</h2><div class="card"><div class="row"><div class="t"><b>Sauvegarde</b><small>Exporter ou importer tout en JSON</small></div><button class="pill" style="border:0" onclick="bk()">Ouvrir</button></div><div class="row"><div class="t"><b>Synchro GitHub</b><small>Dépôt privé et token</small></div><button class="pill" style="border:0" onclick="gs()">Régler</button></div><div class="row"><div class="t"><b>🔔 Notifications</b><small>'+(window.AgendaNative?'Gérées par l’appli':notifOn()?'Activées sur cet appareil':'Rappels sur ton téléphone')+'</small></div><button class="pill" style="border:0" onclick="notifF()">Régler</button></div>'+(window.AgendaNative?'':'<div class="row"><div class="t"><b>📲 Appli Android + widget</b><small>Le résumé du jour et ton budget sur l’écran d’accueil</small></div><a class="pill" style="border:0;text-decoration:none" href="https://github.com/Funkyll7/Layrical/releases/latest/download/agenda.apk" target="_blank" rel="noopener">Télécharger</a></div>')+'</div>'}
 function agenda(){if(wideAg())return bigAgenda();

@@ -77,3 +77,6 @@ Faits main en SVG/HTML (aucune bibliothèque) dans app.js, section « Graphiques
 
 ## Rappels « fait »
 Bouton ✓ sur les rappels (`doneIt`) : la date de l'occurrence est ajoutée à `it.dn`. Un rappel fait disparaît du bandeau d'alertes, des 30 prochains jours, du widget et des notifications (`rappels-calc.mjs` les saute) ; il reste barré dans l'agenda, et ✓ à nouveau annule.
+
+## Mes adresses (Waze)
+`S.contacts = [{id,name,addr,tel,emo}]`, carte « 📍 Mes adresses » sur l'Accueil (recherche au-delà de 8). Toucher un contact ouvre une fenêtre de confirmation : « 🚗 Y aller avec Waze » (`https://waze.com/ul?q=<adresse>&navigate=yes`, ouvert par l'appli Waze), Google Maps en secours, appel si un numéro est enregistré, modifier/supprimer.
