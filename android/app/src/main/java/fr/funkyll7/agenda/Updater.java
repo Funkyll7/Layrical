@@ -77,8 +77,14 @@ final class Updater {
     static void check(Activity a, boolean force) {
         SharedPreferences p = a.getSharedPreferences(P, Context.MODE_PRIVATE);
         long now = System.currentTimeMillis();
+        // retour juste après avoir donné l'autorisation d'installer : on revérifie tout de suite
+        if (p.getBoolean("needPerm", false) && a.getPackageManager().canRequestPackageInstalls()) {
+            force = true;
+            p.edit().putBoolean("needPerm", false).apply();
+        }
         if (!force && now - p.getLong("checked", 0) < 2 * 60_000L) return;
         p.edit().putLong("checked", now).apply();
+        final boolean f = force;
         new Thread(() -> {
             try {
                 Object[] l = latest();
@@ -88,6 +94,7 @@ final class Updater {
                 new Handler(Looper.getMainLooper()).post(() -> {
                     if (a.isFinishing()) return;
                     if (!a.getPackageManager().canRequestPackageInstalls()) {
+                        p.edit().putBoolean("needPerm", true).apply();
                         new AlertDialog.Builder(a)
                                 .setTitle("Mises à jour automatiques")
                                 .setMessage("La version 1.0." + v + " est disponible. Pour que l’appli se mette à jour toute seule, autorise une fois Agenda à installer des applis, puis reviens ici.")
@@ -96,7 +103,7 @@ final class Updater {
                                 .show();
                         return;
                     }
-                    if (!force && p.getLong("tried", 0) == v && now - p.getLong("triedAt", 0) < 10 * 60_000L) return;
+                    if (!f && p.getLong("tried", 0) == v && now - p.getLong("triedAt", 0) < 10 * 60_000L) return;
                     Toast.makeText(a, "Mise à jour vers la version 1.0." + v + "…", Toast.LENGTH_SHORT).show();
                     install(a, url, v);
                 });
