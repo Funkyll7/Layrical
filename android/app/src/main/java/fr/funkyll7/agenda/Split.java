@@ -81,10 +81,10 @@ public class Split extends AccessibilityService {
         log("— " + title + " —");
         if (s == null) { log("service absent"); return; }
         try {
-            for (AccessibilityWindowInfo w : s.getWindows()) {
+            for (AccessibilityWindowInfo w : windows()) {
                 Rect r = new Rect();
                 w.getBoundsInScreen(r);
-                log("[fenêtre type=" + w.getType() + " " + r.toShortString() + " titre=" + w.getTitle() + "]");
+                log("[fenêtre écran=" + (android.os.Build.VERSION.SDK_INT >= 30 ? w.getDisplayId() : 0) + " type=" + w.getType() + " " + r.toShortString() + " titre=" + w.getTitle() + "]");
                 AccessibilityNodeInfo root = w.getRoot();
                 if (root != null) dumpNode(root, 1, new int[]{0});
             }
@@ -192,15 +192,25 @@ public class Split extends AccessibilityService {
         catch (Exception e) { return ""; }
     }
 
-    /** Fenêtre d'appli d'un package donné (bornes dans r), ou false. */
-    private static boolean windowOf(String p, Rect r) {
+    /** Toutes les fenêtres, sur tous les écrans (Honor peut mettre les fenêtres flottantes à part). */
+    private static List<AccessibilityWindowInfo> windows() {
+        List<AccessibilityWindowInfo> l = new ArrayList<>();
         Split s = me;
-        if (s == null) return false;
+        if (s == null) return l;
         try {
-            for (AccessibilityWindowInfo w : s.getWindows()) {
-                if (w.getType() == AccessibilityWindowInfo.TYPE_APPLICATION && p.equals(pkg(w))) { w.getBoundsInScreen(r); return true; }
-            }
-        } catch (Exception ignored) { }
+            if (android.os.Build.VERSION.SDK_INT >= 30) {
+                android.util.SparseArray<List<AccessibilityWindowInfo>> a = s.getWindowsOnAllDisplays();
+                for (int i = 0; i < a.size(); i++) l.addAll(a.valueAt(i));
+            } else l.addAll(s.getWindows());
+        } catch (Exception e) { try { l.addAll(s.getWindows()); } catch (Exception ignored) { } }
+        return l;
+    }
+
+    /** Fenêtre d'un package donné (bornes dans r), ou false. */
+    private static boolean windowOf(String p, Rect r) {
+        for (AccessibilityWindowInfo w : windows()) {
+            if (p.equals(pkg(w))) { w.getBoundsInScreen(r); return true; }
+        }
         return false;
     }
 
@@ -265,41 +275,74 @@ public class Split extends AccessibilityService {
         return null;
     }
 
+    static final String YTM = Music.YTM;
+    /** Poignée (barre bleue) de la fenêtre flottante Waze, mesurée sur l'Honor : milieu, à 23 % de la hauteur. */
+    private static final float[] HANDLE = {0.230f, 0.255f, 0.210f, 0.275f};
+
     /**
-     * Appui long sur la poignée de la fenêtre flottante Waze (au milieu, en haut de la fenêtre),
-     * puis glissement jusqu'en bas de l'écran. Si Waze flotte encore, on réessaie un peu plus haut,
-     * puis depuis le milieu de l'écran.
+     * En ouvrant YouTube Music, Honor réduit Waze en bulle (à droite de l'écran) :
+     * on touche la bulle pour le remettre en fenêtre flottante, puis on le glisse en bas.
      */
     private static void dragWazeDown(Context c, Handler h, String wazeUrl) {
         dump("Waze flottant + YouTube Music");
-        tryDrag(c, h, wazeUrl, 0);
+        Rect b = wazeBubble();
+        if (b != null) {
+            log("4. Waze réduit en bulle " + b.toShortString() + " → on la touche");
+            tap(Math.min(b.centerX(), screenW() - 20), b.centerY());
+            h.postDelayed(() -> { dump("Waze sorti de la bulle"); tryDrag(c, h, wazeUrl, 0); }, 1500);
+        } else tryDrag(c, h, wazeUrl, 0);
+    }
+
+    private static int screenW() { DisplayMetrics dm = metrics(); return dm == null ? 1080 : dm.widthPixels; }
+
+    private static DisplayMetrics metrics() {
+        Split s = me;
+        if (s == null) return null;
+        DisplayMetrics dm = new DisplayMetrics();
+        ((WindowManager) s.getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getRealMetrics(dm);
+        return dm;
+    }
+
+    /** Petite fenêtre système (≈ 150 px), hors barre du haut et hors bulle 🎵 d'Agenda : la bulle Waze. */
+    private static Rect wazeBubble() {
+        Split s = me;
+        if (s == null) return null;
+        for (AccessibilityWindowInfo w : windows()) {
+            if (w.getType() != AccessibilityWindowInfo.TYPE_SYSTEM) continue;
+            if (s.getPackageName().equals(pkg(w))) continue;
+            Rect r = new Rect();
+            w.getBoundsInScreen(r);
+            if (r.top > 150 && r.width() <= 350 && r.height() <= 350 && r.width() > 40) return r;
+        }
+        return null;
+    }
+
+    /** Écran partagé obtenu : YouTube Music ne prend plus tout l'écran. */
+    private static boolean splitDone(DisplayMetrics dm) {
+        Rect y = new Rect();
+        return windowOf(YTM, y) && y.height() < dm.heightPixels * 0.85f;
     }
 
     private static void tryDrag(Context c, Handler h, String wazeUrl, int n) {
         Split s = me;
+        DisplayMetrics dm = metrics();
+        if (s == null || dm == null) { fail(c, wazeUrl); return; }
+        if (splitDone(dm)) { log("4. écran partagé obtenu (essai " + n + ")"); finish(c, h, 300); return; }
+        if (n >= HANDLE.length) { log("4. pas d'écran partagé après " + n + " essais"); dump("échec du glissement"); saveLog(c); finish(c, h, 300); return; }
         Rect r = new Rect();
-        if (s == null || !windowOf(WAZE, r)) { log("4. fenêtre Waze introuvable"); fail(c, wazeUrl); return; }
-        DisplayMetrics dm = new DisplayMetrics();
-        ((WindowManager) s.getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getRealMetrics(dm);
-        boolean floating = r.height() < dm.heightPixels * 0.9f && r.bottom < dm.heightPixels - dm.density * 24;
-        if (!floating) {
-            if (n == 0) { log("4. Waze n'est pas flottant " + r.toShortString()); fail(c, wazeUrl); return; }
-            log("4. Waze n'est plus flottant " + r.toShortString() + " : écran partagé");
-            finish(c, h, 300);
-            return;
-        }
-        if (n >= 3) { log("4. Waze toujours flottant après 3 essais"); dump("échec du glissement"); saveLog(c); finish(c, h, 300); return; }
-        float x = dm.widthPixels / 2f;                       // poignée au milieu
-        float y = n == 0 ? r.top + dm.density * 8            // en haut de la fenêtre
-                : n == 1 ? r.top - dm.density * 6            // juste au-dessus
-                : dm.heightPixels / 2f;                      // milieu de l'écran
+        boolean seen = windowOf(WAZE, r) && r.height() < dm.heightPixels * 0.9f;
+        float x = seen ? r.centerX() : dm.widthPixels / 2f;
+        float y = seen ? r.top + dm.density * 13 + (n - 1) * dm.density * 6 : dm.heightPixels * HANDLE[n];
         float to = dm.heightPixels - dm.density * 4;
-        log("4. essai " + (n + 1) + " : Waze " + r.toShortString() + ", appui à " + (int) x + "," + (int) y + " → " + (int) to);
-        drag(s, x, y, to, 500, 900);
+        log("4. essai " + (n + 1) + (seen ? " (Waze vu " + r.toShortString() + ")" : " (position mesurée)") + " : poignée " + (int) x + "," + (int) y + " → " + (int) to);
+        drag(s, x, y, to, 200, 900);
         h.postDelayed(() -> tryDrag(c, h, wazeUrl, n + 1), 2600);
     }
 
-    /** Appui maintenu puis glissement vertical. */
+    /**
+     * Appui maintenu, glissement vertical, puis on reste appuyé à l'arrivée avant de lâcher
+     * (Honor affiche « Relâcher pour ajouter une application » quand la fenêtre touche le bas).
+     */
     private static void drag(Split s, float x, float from, float to, long hold, long move) {
         Path p = new Path();
         p.moveTo(x, from);
@@ -312,8 +355,17 @@ public class Split extends AccessibilityService {
                     Path m = new Path();
                     m.moveTo(x, from);
                     m.lineTo(x, to);
-                    s2.dispatchGesture(new GestureDescription.Builder()
-                            .addStroke(press.continueStroke(m, 0, move, false)).build(), null, null);
+                    final GestureDescription.StrokeDescription slide = press.continueStroke(m, 0, move, true);
+                    s2.dispatchGesture(new GestureDescription.Builder().addStroke(slide).build(), new GestureResultCallback() {
+                        @Override public void onCompleted(GestureDescription g2) {
+                            Split s3 = me;
+                            if (s3 == null) return;
+                            Path e = new Path();
+                            e.moveTo(x, to);
+                            s3.dispatchGesture(new GestureDescription.Builder()
+                                    .addStroke(slide.continueStroke(e, 0, 700, false)).build(), null, null);
+                        }
+                    }, null);
                 }
             }, null);
         } catch (Exception e) { log("glissement impossible : " + e); }
