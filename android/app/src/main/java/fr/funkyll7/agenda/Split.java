@@ -232,7 +232,7 @@ public class Split extends AccessibilityService {
         final Context c = ctx.getApplicationContext();
         final Handler h = new Handler(Looper.getMainLooper());
         LOG.setLength(0);
-        log("Agenda écran partagé v8 · " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE);
+        log("Agenda écran partagé v9 · " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE);
         if (bubble && Bubble.canShow(c)) Bubble.show(c);
 
         // 1. Waze
@@ -331,22 +331,18 @@ public class Split extends AccessibilityService {
         if (n >= HANDLE.length) { log("4. pas d'écran partagé après " + n + " essais"); dump("échec du glissement"); saveLog(c); finish(c, h, 300); return; }
         Rect r = new Rect();
         boolean seen = windowOf(WAZE, r) && r.height() < dm.heightPixels * 0.9f;
-        // Honor : il faut RESTER APPUYÉ sur la poignée (la fenêtre rétrécit) avant de glisser,
-        // sinon la fenêtre est juste déplacée. Puis descente lente et appui maintenu en bas
-        // jusqu'à « Relâcher pour ajouter une application ».
+        // Copie du geste filmé à la main : doigt sur la barre bleue, départ presque immédiat,
+        // descente en 1 s (lente, rapide, puis lente), la barre s'arrête TOUT au bord de l'écran
+        // (« limite hors du champ mais toujours dedans »), doigt immobile ~1 s, puis on lâche.
         float x = seen ? r.centerX() : dm.widthPixels / 2f;
         float y = seen ? r.top + dm.density * 14 : dm.heightPixels * HANDLE[n];
-        y = Math.min(y, dm.heightPixels - dm.density * 30);   // fenêtre garée en bas : on reprend sa poignée
-        // Dans la vidéo, la fenêtre doit disparaître ENTIÈREMENT sous l'écran (barre du haut comprise)
-        // avant que « Relâcher pour ajouter une application » apparaisse : le doigt virtuel va donc
-        // au-delà du bord (Android n'interdit que les coordonnées négatives).
-        float to = dm.heightPixels + 300 + 150 * n;
-        // 3 manières : lente avec appui long, jet rapide, puis reprise de la fenêtre déjà garée en bas
-        long hold = n == 1 ? 150 : 1000, move = n == 1 ? 300 : 1500, end = 2000;   // on reste immobile sous l'écran, puis on lâche
-        log("4. essai " + (n + 1) + (n == 1 ? " (jet rapide)" : n == 2 ? " (reprise en bas)" : " (lent)") + (seen ? ", Waze " + r.toShortString() : ", position mesurée")
-                + " : appui " + hold + " ms sur " + (int) x + "," + (int) y + " → " + (int) to + " (écran " + dm.widthPixels + "×" + dm.heightPixels + ")");
-        drag(s, x, y, to, hold, move, end);
-        h.postDelayed(() -> tryDrag(c, h, wazeUrl, n + 1), hold + move + end + 1800);
+        y = Math.min(y, dm.heightPixels - dm.density * 30);
+        float to = dm.heightPixels - (n == 2 ? 1 : 5);
+        long end = n == 0 ? 1000 : 1600;
+        log("4. essai " + (n + 1) + (seen ? ", Waze " + r.toShortString() : ", position mesurée")
+                + " : barre " + (int) x + "," + (int) y + " → " + (int) to + ", immobile " + end + " ms (écran " + dm.widthPixels + "×" + dm.heightPixels + ")");
+        filmed(s, x, y, to, end);
+        h.postDelayed(() -> tryDrag(c, h, wazeUrl, n + 1), 120 + 1000 + end + 2500);
     }
 
     /**
@@ -386,6 +382,47 @@ public class Split extends AccessibilityService {
                 }
             }, null);
         } catch (Exception e) { log("glissement impossible : " + e); }
+    }
+
+    /** Temps (0→1) et avancée (0→1) de la barre Waze dans la vidéo, image par image. */
+    private static final float[] FT = {0f, .14f, .20f, .27f, .34f, .40f, .47f, .54f, .60f, .67f, .74f, .80f, .87f, .94f, 1f};
+    private static final float[] FP = {0f, .026f, .057f, .097f, .148f, .226f, .371f, .558f, .734f, .842f, .877f, .913f, .946f, .978f, 1f};
+
+    /** Appui bref, descente en 1 s selon le profil filmé, doigt immobile, puis on lâche. */
+    private static void filmed(Split s, float x, float from, float to, long endHold) {
+        Path p = new Path();
+        p.moveTo(x, from);
+        step(new GestureDescription.StrokeDescription(p, 0, 120, true), x, from, to, 1, endHold);
+    }
+
+    private static void step(GestureDescription.StrokeDescription prev, float x, float from, float to, int k, long endHold) {
+        Split s = me;
+        if (s == null) return;
+        try {
+            boolean ok = s.dispatchGesture(new GestureDescription.Builder().addStroke(prev).build(), new GestureResultCallback() {
+                @Override public void onCompleted(GestureDescription g) {
+                    float a = from + (to - from) * FP[Math.min(k, FP.length) - 1];
+                    Path m = new Path();
+                    m.moveTo(x, a);
+                    if (k < FT.length) {
+                        float b = from + (to - from) * FP[k];
+                        m.lineTo(x, b);
+                        long d = Math.max(20, (long) ((FT[k] - FT[k - 1]) * 1000));
+                        step(prev.continueStroke(m, 0, d, true), x, from, to, k + 1, endHold);
+                    } else {
+                        // à l'arrivée : immobile, puis on lâche
+                        Split s2 = me;
+                        if (s2 != null) s2.dispatchGesture(new GestureDescription.Builder()
+                                .addStroke(prev.continueStroke(m, 0, endHold, false)).build(), new GestureResultCallback() {
+                            @Override public void onCompleted(GestureDescription g2) { log("   geste terminé"); }
+                            @Override public void onCancelled(GestureDescription g2) { log("   fin du geste annulée"); }
+                        }, null);
+                    }
+                }
+                @Override public void onCancelled(GestureDescription g) { log("   geste annulé à l'étape " + k); }
+            }, null);
+            if (!ok) log("   geste refusé à l'étape " + k);
+        } catch (Exception e) { log("   geste impossible : " + e); }
     }
 
     private static boolean openWaze(Context c, String url, boolean adjacent) {
