@@ -83,3 +83,11 @@ Bouton ✓ sur les rappels (`doneIt`) : la date de l'occurrence est ajoutée à 
 
 ## Accueil (ordre et règles d'interface)
 Inspiré des applis bancaires (Revolut, Monzo) : un solde « héros », des tuiles « coup d'œil » qui mènent au détail, des listes sur une ligne. Ordre : en-tête (Bonjour/Bonsoir, date, version) → alertes (si besoin) → héros (solde + fin du mois, reçu, dépensé) → 4 tuiles (💼 salaire dans N j, 📉 point bas, 🎉 argent de poche restant avec barre, 🐷 épargne + S&P) → 📅 Aujourd'hui/Demain (rappels cochables) → ⏳ À surveiller (si non vide) → 🗓️ À venir (6 lignes d'une ligne `cRow`, toucher = modifier, puis « Voir les N suivants ») → 📍 Mes adresses (rangée défilante) → réglages en 3 boutons. Le détail du salaire (courbe, crédits) est dans l'onglet Budget. Sur téléphone (< 1000 px), barre fixe en haut : synchro, 💰, 📝. Cibles tactiles ≥ 44 px.
+
+## Toutes les pages : même style compact
+Composants communs : `L1` (ligne d'une ligne : icône, titre, sous-titre, montant, pastille de délai `chipFor`, barre de progression, action rapide ; toucher la ligne ouvre sa fiche), `heroBox` (gros chiffre + 3 sous-chiffres), `tile`, `sect`, `listMore` (N lignes puis « Voir les autres »), `more` (bloc replié, état retenu). Les fiches de modification ont un bouton « Supprimer » (« Arrêter » pour un revenu/dépense fixe), donc plus de ✎/✕ sur chaque ligne.
+- Budget : héros bilan du mois (reçu, dépensé, solde) → 4 tuiles (poche, abonnements, crédits, quotidien) → salaire (détail replié) → argent de poche → Caisse d'Épargne → catégories → graphiques (repliés) → fixes, quotidien, abonnements (5 + autres) → mouvements (8 + autres).
+- Dettes : héros reste à rembourser (par mois, je dois, on me doit) → crédits (barre de progression) → plusieurs fois → dettes entre proches (bouton Rembourser) → « Rembourser plus vite » replié.
+- Épargne : héros patrimoine → 3 boutons d'action → S&P 500 et intérêts composés repliés → historique.
+- Échéances : héros prochaine échéance (dans, date, coût sur 12 mois) → liste avec pastilles rouge < 30 j, orange < 90 j.
+- Agenda (téléphone) : liste du jour en lignes compactes.
