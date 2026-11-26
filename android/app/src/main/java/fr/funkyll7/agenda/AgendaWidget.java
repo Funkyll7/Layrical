@@ -108,6 +108,7 @@ public class AgendaWidget extends AppWidgetProvider {
             v.setTextViewText(R.id.title, "Agenda");
             v.setTextViewText(R.id.bal, "");
             v.setTextViewText(R.id.today, "Ouvre l’appli une fois pour remplir le widget.");
+            v.setTextViewText(R.id.todayAmt, "");
             v.setTextViewText(R.id.tomorrow, "");
             v.setTextViewText(R.id.budget, "");
             return v;
@@ -119,6 +120,7 @@ public class AgendaWidget extends AppWidgetProvider {
                 v.setTextViewText(R.id.title, all.optString("date"));
                 v.setTextViewText(R.id.bal, all.isNull("bal") ? "" : all.optString("bal"));
                 v.setTextViewText(R.id.today, lines(all.optJSONArray("today"), "\n", 3));
+                v.setTextViewText(R.id.todayAmt, "");
                 v.setTextViewText(R.id.tomorrow, "");
                 v.setTextViewText(R.id.budget, "");
                 return v;
@@ -127,6 +129,10 @@ public class AgendaWidget extends AppWidgetProvider {
             v.setTextViewText(R.id.bal, o.optString("bal"));
             v.setTextColor(R.id.bal, o.optBoolean("neg") ? Color.parseColor("#FF8A80") : Color.WHITE);
             String t = lines(o.optJSONArray("t"), "\n", 3);
+            JSONArray ta = o.optJSONArray("ta");
+            StringBuilder am = new StringBuilder();
+            if (ta != null) for (int k = 0; k < Math.min(3, ta.length()); k++) { if (k > 0) am.append("\n"); am.append(ta.optString(k)); }
+            v.setTextViewText(R.id.todayAmt, am.toString());
             int more = o.optInt("tx");
             v.setTextViewText(R.id.today, t.isEmpty() ? "Rien de prévu aujourd’hui" : t + (more > 0 ? "\n+ " + more + " autre" + (more > 1 ? "s" : "") : ""));
             String tm = o.optString("tm");
