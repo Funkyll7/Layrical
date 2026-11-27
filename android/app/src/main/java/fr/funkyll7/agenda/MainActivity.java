@@ -52,7 +52,7 @@ public class MainActivity extends Activity {
         Notif.run(this);
         if (Updater.ACTION.equals(getIntent().getAction())) Updater.check(this, true);
         if (b != null) w.restoreState(b);
-        else w.loadUrl(Web.URL);
+        else w.loadUrl(Web.URL + ("trips".equals(getIntent().getAction()) ? "#trajets" : ""));
     }
 
     @Override
@@ -68,6 +68,8 @@ public class MainActivity extends Activity {
         w.onResume();
         live = this;
         w.evaluateJavascript("window.nimport&&nimport()", null);
+        w.evaluateJavascript("window.tripsRefresh&&tripsRefresh()", null);
+        Trips.register(this);
         Updater.check(this, false);
     }
 
@@ -75,6 +77,25 @@ public class MainActivity extends Activity {
     protected void onNewIntent(Intent i) {
         super.onNewIntent(i);
         if (Updater.ACTION.equals(i.getAction())) Updater.check(this, true);
+        if ("trips".equals(i.getAction())) openTrips();
+    }
+
+    /** Notification d'un trajet touchée : onglet 🚗 Trajets. */
+    private void openTrips() {
+        if (w != null) w.evaluateJavascript("window.tripsOpen&&tripsOpen()", null);
+    }
+
+    /** Le site demande les autorisations de localisation (onglet Trajets). */
+    static void askTrips() {
+        MainActivity a = live;
+        if (a != null) a.runOnUiThread(() -> Trips.ask(a));
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int req, String[] perms, int[] res) {
+        super.onRequestPermissionsResult(req, perms, res);
+        Trips.onResult(this, req);
+        if (w != null) w.evaluateJavascript("window.tripsRefresh&&tripsRefresh()", null);
     }
 
     @Override

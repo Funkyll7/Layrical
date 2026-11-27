@@ -142,6 +142,29 @@ final class Web {
         @JavascriptInterface
         public void splitSettings() { Split.openSettings(c); }
 
+        /** 🚗 Trajets : état du suivi, autorisations, trajet en cours. */
+        @JavascriptInterface
+        public String tripsState() { return Trips.state(c); }
+
+        @JavascriptInterface
+        public void tripsEnable(boolean on) { Trips.enable(c, on); }
+
+        /** Demande les autorisations qui manquent (position, « Toujours autoriser », batterie). */
+        @JavascriptInterface
+        public void tripsAsk() { MainActivity.askTrips(); }
+
+        @JavascriptInterface
+        public String tripsPending() { return Trips.pending(c); }
+
+        @JavascriptInterface
+        public void tripsAck(String ids) { Trips.ack(c, ids); }
+
+        @JavascriptInterface
+        public void tripStart() { TripService.start(c, true); }
+
+        @JavascriptInterface
+        public void tripStop() { TripService.stopNow(c); }
+
         /** Diagnostic du dernier essai d'écran partagé (vide s'il n'y en a pas). */
         @JavascriptInterface
         public boolean splitHasDebug() { return !Split.debug(c).isEmpty(); }

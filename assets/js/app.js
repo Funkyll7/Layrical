@@ -14,8 +14,8 @@ const dl=s=>P(s).toLocaleDateString('fr-FR',Object.assign({weekday:'short',day:'
 const diff=s=>Math.round((P(s)-P(TD))/864e5);
 const inj=n=>n==0?"Aujourd’hui":n==1?'Demain':'Dans '+n+' j';
 let S={items:[],tx:[],debts:[],rec:[],sav:[],inv:[],subs:[],pushKey:null,notif:{hour:8},bal:null,plan:{inc:'',p:{poche:50,invest:25,pepin:25}},bud:{},ts:0,tab:'home',sel:TD,cy:+TD.slice(0,4),cm:+TD.slice(5,7)-1,by:+TD.slice(0,4),bm:+TD.slice(5,7)-1};
-let SYNC='local';const apply=o=>{S.items=o.items||[];S.tx=o.tx||[];S.debts=o.debts||[];S.rec=o.rec||[];S.bal=o.bal||null;S.notes=o.notes||'';S.plan=o.plan||{inc:'',p:{poche:50,invest:25,pepin:25}};S.sav=o.sav||[];S.inv=o.inv||[];S.subs=o.subs||[];S.pushKey=o.pushKey||null;S.notif=o.notif||{hour:8};S.bud=o.bud||{};S.poche=o.poche||{tx:[],round:{on:true,x:1}};S.card=o.card||[];S.contacts=o.contacts||[];S.music=o.music||{url:'',wmode:'resume'};S.ts=o.ts||0};try{const r=localStorage.getItem('agenda-perso');if(r)apply(JSON.parse(r))}catch(e){}
-const snap=()=>({items:S.items,tx:S.tx,debts:S.debts,rec:S.rec,bal:S.bal,notes:S.notes||'',plan:S.plan,sav:S.sav,inv:S.inv,subs:S.subs,pushKey:S.pushKey,notif:S.notif,bud:S.bud,poche:S.poche,card:S.card,contacts:S.contacts,music:S.music,ts:S.ts});
+let SYNC='local';const apply=o=>{S.items=o.items||[];S.tx=o.tx||[];S.debts=o.debts||[];S.rec=o.rec||[];S.bal=o.bal||null;S.notes=o.notes||'';S.plan=o.plan||{inc:'',p:{poche:50,invest:25,pepin:25}};S.sav=o.sav||[];S.inv=o.inv||[];S.subs=o.subs||[];S.pushKey=o.pushKey||null;S.notif=o.notif||{hour:8};S.bud=o.bud||{};S.poche=o.poche||{tx:[],round:{on:true,x:1}};S.card=o.card||[];S.contacts=o.contacts||[];S.music=o.music||{url:'',wmode:'resume'};S.trips=o.trips||[];S.tcfg=o.tcfg||{cv:'',el:false};S.ts=o.ts||0};try{const r=localStorage.getItem('agenda-perso');if(r)apply(JSON.parse(r))}catch(e){}
+const snap=()=>({items:S.items,tx:S.tx,debts:S.debts,rec:S.rec,bal:S.bal,notes:S.notes||'',plan:S.plan,sav:S.sav,inv:S.inv,subs:S.subs,pushKey:S.pushKey,notif:S.notif,bud:S.bud,poche:S.poche,card:S.card,contacts:S.contacts,music:S.music,trips:S.trips||[],tcfg:S.tcfg||{cv:'',el:false},ts:S.ts});
 let ERR='';const badge=()=>{const e=$('#sy');e.textContent=SYNC=='ok'?'☁️ Synchronisé':SYNC=='sav'?'☁️ Envoi…':SYNC=='err'?'⚠️ '+(ERR||'Hors ligne'):'📱 Local · touche pour régler la synchro';e.onclick=()=>gs();e.style.cursor='pointer'};
 const lsave=()=>{try{localStorage.setItem('agenda-perso',JSON.stringify(snap()))}catch(e){}};
 const save=()=>{S.ts=Date.now();lsave();if(GH.token&&GH.repo){SYNC='sav';badge();clearTimeout(tm);tm=setTimeout(push,1200)}};
@@ -554,7 +554,7 @@ const cardTx=c=>c.in?{id:'cb'+c.id,date:c.date,label:'💶 '+c.label,amt:+c.amt,
 function cardToggle(id){const c=(S.card||[]).find(x=>x.id==id);if(!c)return;S.tx=S.tx.filter(t=>t.id!='cb'+c.id);if(c.st=='prevu'){c.st='imprevu';S.tx.push(cardTx(c))}else c.st='prevu';save();render()}
 function cardDel(id){const c=(S.card||[]).find(x=>x.id==id);if(!c||!confirm('Supprimer ce paiement ('+eur(+c.amt)+') ? Il ne sera plus déduit.'))return;S.card=S.card.filter(x=>x.id!=id);S.tx=S.tx.filter(t=>t.id!='cb'+id);save();render()}
 // Paiements lus par l'appli Android dans les notifications (file d'attente côté téléphone)
-function nimport(){try{if(!window.AgendaNative||!AgendaNative.pending)return 0;const L=JSON.parse(AgendaNative.pending()||'[]');if(!L.length)return 0;let n=0;S.card=S.card||[];
+function nimport(){try{timport()}catch(e){}try{if(!window.AgendaNative||!AgendaNative.pending)return 0;const L=JSON.parse(AgendaNative.pending()||'[]');if(!L.length)return 0;let n=0;S.card=S.card||[];
  for(const p of L){const amt=Math.round(+p.amt*100)/100;if(!(amt>0))continue;
   if(p.bank=='revolut'){if(pk().tx.some(x=>x.id==p.id))continue;const man=pk().tx.find(x=>!x.auto&&x.date==p.date&&Math.abs(+x.amt-amt)<0.005&&!x.in==!p.in);if(man){man.auto=1;if(p.bal!=null)man.bal=+p.bal;if(p.time&&!man.time)man.time=p.time;n++;continue}pk().tx.push({id:p.id,at:p.ts||Date.now(),date:p.date,time:p.time,amt,round:p.in?0:roundOf(amt),in:p.in?1:0,label:p.label||(p.in?'Argent reçu':'Paiement Revolut'),bal:p.bal==null?null:+p.bal,auto:1});n++}
   else if(p.bank=='ce'){if(S.card.some(x=>x.id==p.id))continue;if(S.tx.some(t=>!String(t.id).startsWith('cb')&&t.date==p.date&&Math.abs(Math.abs(+t.amt)-amt)<0.005&&(t.amt>0)==!!p.in))continue;const sr=salRec(),isSal=!!(p.in&&sr&&Math.abs(amt-sr.amt)<=sr.amt*0.15),c={id:p.id,date:p.date,time:p.time,amt,in:p.in?1:0,label:p.label||(p.in?(isSal?'Salaire (virement reçu)':'Virement reçu'):'Paiement carte'),st:isSal?'prevu':'imprevu',ct:p.ts||Date.now()};S.card.push(c);if(c.st!='prevu')S.tx.push(cardTx(c));n++}}
@@ -578,16 +578,74 @@ function widgetShort(){const e0=v=>(v<0?'−':'')+Math.abs(Math.round(v)).toLoca
 function wpush(){try{const b=document.querySelector('.mub');if(b)b.hidden=!(window.AgendaNative&&AgendaNative.musicPlay)}catch(e){}musicSync();try{if(window.AgendaNative)AgendaNative.update(JSON.stringify(widgetData()))}catch(e){}clearTimeout(wpush.t);wpush.t=setTimeout(nsched,400)}
 // Notifications programmées dans le téléphone par l'appli Android (8 jours d'avance, recalculées à chaque ouverture/synchro)
 async function nsched(){try{if(!window.AgendaNative||!AgendaNative.schedule)return;const m=await import(new URL('scripts/rappels-calc.mjs',document.baseURI).href);const L=m.plan(snap(),TD,8).map(x=>({at:x.at,title:x.title,body:x.body,tag:x.tag}));AgendaNative.schedule(JSON.stringify(L));return L.length}catch(e){console.warn("nsched",e)}}
+// ---------- 🚗 Trajets : détectés par l'appli Android, marqués « travail » pour les frais réels ----------
+// Barème kilométrique fiscal (voitures thermiques / hybrides), arrêté du 27 mars 2023, toujours en vigueur en 2026.
+// [taux, fixe] pour : jusqu'à 5 000 km · 5 001 à 20 000 km · au-delà. Électrique 100 % : +20 %.
+const BK={3:[[.529,0],[.316,1065],[.370,0]],4:[[.606,0],[.340,1330],[.407,0]],5:[[.636,0],[.357,1395],[.427,0]],6:[[.665,0],[.374,1457],[.447,0]],7:[[.697,0],[.394,1515],[.470,0]]};
+const ded=(d,cv,el)=>{if(!d)return 0;const b=BK[Math.min(7,Math.max(3,+cv||5))],r=b[d<=5000?0:d<=20000?1:2];return (d*r[0]+r[1])*(el?1.2:1)};
+const kmf=k=>(Math.round(k*10)/10).toLocaleString('fr-FR',{maximumFractionDigits:1})+' km';
+const tDay=t=>{const d=new Date(t.t0);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const tHM=ms=>{const d=new Date(ms);return pad(d.getHours())+':'+pad(d.getMinutes())};
+const tcfg=()=>S.tcfg||(S.tcfg={cv:'',el:false});
+function tst(){try{return window.AgendaNative&&AgendaNative.tripsState?JSON.parse(AgendaNative.tripsState()):null}catch(e){return null}}
+// trajets terminés par le téléphone → enregistrés ici (et synchronisés)
+function timport(){try{if(!window.AgendaNative||!AgendaNative.tripsPending)return 0;const L=JSON.parse(AgendaNative.tripsPending()||'[]');if(!L.length)return 0;S.trips=S.trips||[];let n=0;
+ L.forEach(t=>{if(!S.trips.some(x=>x.id==t.id)){S.trips.push({id:t.id,t0:t.t0,t1:t.t1,km:+t.km,from:t.from,to:t.to,a:t.a,b:t.b,work:false});n++}});
+ if(n)save();AgendaNative.tripsAck(JSON.stringify(L.map(t=>t.id)));return n}catch(e){console.warn('timport',e);return 0}}
+function tripsRefresh(){const n=timport();if(S.tab=='tr'||n)render()}
+function tripsOpen(){timport();S.tab='tr';render();scrollTo(0,0)}
+function tripWork(id){const t=(S.trips||[]).find(x=>x.id==id);if(!t)return;t.work=!t.work;save();render()}
+function tOn(on){if(!window.AgendaNative)return;AgendaNative.tripsEnable(on);if(on)AgendaNative.tripsAsk();render()}
+function tCv(v){tcfg().cv=v;save();render()}
+function tEl(b){tcfg().el=b;save();render()}
+function tStatus(){const st=tst();if(!st)return '<div class="card"><p style="margin:0">Les trajets sont détectés par l’<b>appli Android</b> (position pendant les trajets en voiture). Ici, tu peux les consulter et en ajouter à la main avec <b>+</b>.</p></div>';
+ if(!st.on)return '<div class="card"><p style="margin-top:0"><b>Enregistrer automatiquement mes trajets en voiture</b></p><p style="color:var(--mu);font-size:14px">Le téléphone détecte quand tu montes en voiture, suit le trajet au GPS, puis l’ajoute ici : <i>Guillac → Josselin · 12,4 km</i>. Le GPS ne tourne que pendant les trajets.</p><button class="go" onclick="tOn(true)">🚗 Activer</button></div>';
+ const miss=[];if(!st.loc)miss.push('📍 Position');if(!st.act)miss.push('🏃 Activité physique (détecter la voiture)');if(st.loc&&!st.bg)miss.push('📍 Position : <b>Toujours autoriser</b>');if(!st.bat)miss.push('🔋 Batterie : <b>sans restriction</b>');
+ let h='<div class="card">';
+ if(miss.length)h+='<p style="margin-top:0"><b>⚠️ Il manque des autorisations</b></p><p style="font-size:14px;margin:0 0 4px">'+miss.join('<br>')+'</p><button class="go" onclick="AgendaNative.tripsAsk()">Autoriser</button>';
+ else if(st.rec)h+='<p style="margin:0"><b>🚗 Trajet en cours</b> · '+kmf(st.km)+(st.since?' depuis '+tHM(st.since):'')+'</p><button class="go" onclick="AgendaNative.tripStop();setTimeout(tripsRefresh,2500)">⏹ Terminer le trajet</button>';
+ else h+='<p style="margin:0">✅ <b>Suivi actif</b> : tes trajets en voiture s’enregistrent tout seuls.</p><button class="go" style="background:var(--ln);color:var(--ink)" onclick="AgendaNative.tripStart();setTimeout(tripsRefresh,1500)">▶ Démarrer un trajet maintenant</button>';
+ h+='<small style="display:block;color:var(--mu);margin-top:8px">Sur Honor : Paramètres → Applis → Lancement d’applis → Agenda → <b>Gérer manuellement</b> (tout cocher), sinon le téléphone peut couper le suivi.'+(st.last?'<br>Dernière détection : '+esc(st.last):'')+(st.reg&&st.reg!='ok'?'<br>Détection : '+esc(st.reg):'')+' · <a href="#" onclick="event.preventDefault();if(confirm(\'Arrêter l’enregistrement automatique des trajets ?\'))tOn(false)">désactiver</a></small></div>';
+ if(st.rec)setTimeout(()=>{if(S.tab=='tr'&&!$('#m').classList.contains('on'))tripsRefresh()},15000);
+ return h}
+function trajets(){const T=(S.trips||[]).slice().sort((a,b)=>b.t0-a.t0),yrs=[...new Set([TD.slice(0,4),...T.map(t=>tDay(t).slice(0,4))])].sort().reverse(),Y=S.ty&&yrs.includes(S.ty)?S.ty:yrs[0];
+ const Ty=T.filter(t=>tDay(t).startsWith(Y)),W=Ty.filter(t=>t.work),sum=L=>L.reduce((a,t)=>a+(+t.km||0),0),kmW=sum(W),c=tcfg();
+ let h='<h1>Trajets</h1>'+heroBox('💼 Travail en '+Y,kmf(kmW),'',[['Trajets travail',String(W.length)],['Déductible ≈',c.cv?eur(Math.round(ded(kmW,c.cv,c.el))):'<a href="#tcv" style="color:inherit">régler CV</a>'],['🚗 Tous',kmf(sum(Ty))]]);
+ if(yrs.length>1)h+='<div class="seg" style="margin-top:8px">'+yrs.map(y=>'<button type="button" class="'+(y==Y?'on':'')+'" onclick="S.ty=\''+y+'\';render()">'+y+'</button>').join('')+'</div>';
+ h+=tStatus();
+ if(!Ty.length)h+='<div class="card"><p style="margin:0;color:var(--mu)">Aucun trajet en '+Y+' pour l’instant.</p></div>';
+ const M={};Ty.forEach(t=>{const k=tDay(t).slice(0,7);(M[k]=M[k]||[]).push(t)});
+ Object.keys(M).sort().reverse().forEach(k=>{const L=M[k],mw=sum(L.filter(t=>t.work)),lab=P(k+'-01').toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  h+=sect(lab.charAt(0).toUpperCase()+lab.slice(1)+(mw?' · <span style="color:var(--ac)">💼 '+kmf(mw)+'</span>':''),L.map(t=>L1({ic:t.work?'💼':'🚗',cls:t.work?'work':'',t:esc(t.from||'?')+' → '+esc(t.to||'?'),
+   s:dl(tDay(t))+(t.man?'':' · '+tHM(t.t0)+'–'+tHM(t.t1||t.t0)),a:kmf(+t.km||0),on:"tripF('"+t.id+"')",
+   act:'<button type="button" class="twk'+(t.work?' on':'')+'" title="Trajet pour le travail" onclick="'+stop("tripWork('"+t.id+"')")+'">💼</button>'})).join(''))});
+ h+='<h2 id="tcv">🧾 Frais réels</h2><div class="card fc"><label style="margin-top:0">Puissance fiscale de ma voiture (CV, case P.6 de la carte grise)</label><select onchange="tCv(this.value)"><option value="">Choisir…</option>'+[3,4,5,6,7].map(v=>'<option value="'+v+'"'+(c.cv==v?' selected':'')+'>'+(v==3?'3 CV et moins':v==7?'7 CV et plus':v+' CV')+'</option>').join('')+'</select>'
+  +'<label class="pk-r"><input type="checkbox" '+(c.el?'checked':'')+' onchange="tEl(this.checked)"> Voiture 100 % électrique (+20 %)</label>'
+  +'<small style="display:block;color:var(--mu);margin-top:6px">Touche 💼 sur un trajet pour le compter comme trajet de travail. Le montant utilise le barème kilométrique officiel (inchangé depuis 2023, toujours valable en 2026) sur le total des km travail de l’année. Entre domicile et travail, au-delà de 40 km (aller), il faut pouvoir justifier la distance. Estimation à vérifier sur impots.gouv.fr.</small></div>';
+ return h}
+// ajout / correction d'un trajet
+function tripF(id){const t=id?(S.trips||[]).find(x=>x.id==id):null;
+ sheet('<h2 style="margin-top:0">'+(t?'Trajet':'Nouveau trajet')+'</h2><label>Départ</label><input id="tp_f" value="'+esc(t?t.from||'':'')+'" placeholder="Ex. Guillac"><label>Arrivée</label><input id="tp_t" value="'+esc(t?t.to||'':'')+'" placeholder="Ex. Josselin">'
+  +'<label>Distance (km)</label><input id="tp_k" type="number" inputmode="decimal" step="0.1" value="'+(t?t.km:'')+'"><label>Date</label><input id="tp_d" type="date" value="'+(t?tDay(t):TD)+'">'
+  +'<label class="pk-r"><input type="checkbox" id="tp_w" '+(t&&t.work?'checked':'')+'> 💼 Trajet pour le travail</label>'
+  +(t&&t.a?'<small style="display:block;color:var(--mu);margin-top:6px">Enregistré par le téléphone'+(t.man?'':' de '+tHM(t.t0)+' à '+tHM(t.t1||t.t0))+'.</small>':'')
+  +'<button class="go" onclick="saveTrip(\''+(id||'')+'\')">Enregistrer</button>'+(t?'<button class="go" style="background:none;color:var(--rd)" onclick="delTrip(\''+id+'\')">Supprimer</button>':''))}
+function saveTrip(id){const k=parseFloat(String($('#tp_k').value).replace(',','.')),d=$('#tp_d').value||TD,f=$('#tp_f').value.trim(),to=$('#tp_t').value.trim();if(!(k>0)){alert('Indique la distance en km.');return}
+ S.trips=S.trips||[];let t=id&&S.trips.find(x=>x.id==id);
+ if(!t){t={id:'m'+uid(),man:1};S.trips.push(t)}
+ if(tDay(t||{t0:0})!=d||!t.t0){const o=t.t0?new Date(t.t0):null,n=P(d);if(o&&!t.man)n.setHours(o.getHours(),o.getMinutes());else n.setHours(12,0);const sh=n.getTime()-(t.t0||n.getTime());t.t0=n.getTime();if(t.t1)t.t1+=sh}
+ Object.assign(t,{from:f,to,km:Math.round(k*10)/10,work:$('#tp_w').checked});save();closeF();render()}
+function delTrip(id){if(!confirm('Supprimer ce trajet ?'))return;S.trips=(S.trips||[]).filter(x=>x.id!=id);save();closeF();render()}
 function render(){setTimeout(wpush,0);document.body.classList.toggle('wide',wideAg());
- const t=S.tab;$('#app').innerHTML=t=='home'?home():t=='ag'?agenda():t=='bu'?budget():t=='de'?dettes():t=='ep'?epargne():rappels();
- $('#nav').innerHTML=[['home','🏠','Accueil'],['ag','📅','Agenda'],['bu','💶','Budget'],['de','💳','Dettes'],['ep','🐷','Épargne'],['re','⏳','Échéances']].map(a=>'<button class="'+(t==a[0]?'on':'')+'" onclick="S.tab=\''+a[0]+'\';render();scrollTo(0,0)"><span>'+a[1]+'</span>'+a[2]+'</button>').join('');noteSync();planRender()}
+ const t=S.tab;$('#app').innerHTML=t=='home'?home():t=='ag'?agenda():t=='bu'?budget():t=='de'?dettes():t=='ep'?epargne():t=='tr'?trajets():rappels();
+ $('#nav').innerHTML=[['home','🏠','Accueil'],['ag','📅','Agenda'],['bu','💶','Budget'],['de','💳','Dettes'],['ep','🐷','Épargne'],['re','⏳','Échéances'],['tr','🚗','Trajets']].map(a=>'<button class="'+(t==a[0]?'on':'')+'" onclick="S.tab=\''+a[0]+'\';render();scrollTo(0,0)"><span>'+a[1]+'</span>'+a[2]+'</button>').join('');noteSync();planRender()}
 function $(s){return document.querySelector(s)}
 function mv(k,d){let m=S[k+'m']+d,y=S[k+'y'];if(m<0){m=11;y--}if(m>11){m=0;y++}S[k+'m']=m;S[k+'y']=y;render()}
 function delIt(id){if(confirm('Supprimer cet élément ?')){S.items=S.items.filter(i=>i.id!=id);save();render()}}
 function delTx(id){S.tx=S.tx.filter(i=>i.id!=id);save();render()}
 let F={};
 function seg(k,opts,cur){return '<div class="seg">'+opts.map(o=>'<button type="button" class="'+(cur==o[0]?'on':'')+'" onclick="F.'+k+'=\''+o[0]+'\';showForm()">'+o[1]+'</button>').join('')+'</div>'}
-function openForm(){if(S.tab=='ep')return savF();$('#sh').innerHTML='';F=S.tab=='de'?{k:'debt',dm:'debt',dir:'owe',rep:'monthly'}:S.tab=='bu'?{k:'tx',kind:'out',freq:'once'}:{k:'it',type:S.tab=='re'?'renouv':'rdv',rep:'none'};showForm()}
+function openForm(){if(S.tab=='ep')return savF();if(S.tab=='tr')return tripF();$('#sh').innerHTML='';F=S.tab=='de'?{k:'debt',dm:'debt',dir:'owe',rep:'monthly'}:S.tab=='bu'?{k:'tx',kind:'out',freq:'once'}:{k:'it',type:S.tab=='re'?'renouv':'rdv',rep:'none'};showForm()}
 function annivSel(d){const dd=+(F.dd||d.slice(8)),mm=F.mm||d.slice(5,7);let a='',b='';for(let i=1;i<=31;i++)a+='<option value="'+i+'"'+(i==dd?' selected':'')+'>'+i+'</option>';MO.forEach((n,i)=>{const v=pad(i+1);b+='<option value="'+v+'"'+(v==mm?' selected':'')+'>'+n+'</option>'});return '<div style="display:flex;gap:8px"><select id="f_dd" aria-label="Jour" style="flex:1">'+a+'</select><select id="f_mm" aria-label="Mois" style="flex:2">'+b+'</select></div><small style="color:var(--mu);font-size:12px;display:block;margin-top:4px">Rappelé chaque année, pas besoin de l’année.</small>'}
 function showForm(){
  const v=id=>($('#'+id)||{}).value;if($('#f_t'))F.t=v('f_t'),F.d=v('f_d'),F.a=v('f_a'),F.n=v('f_n'),F.c=v('f_c'),F.l=v('f_l'),F.tot=v('f_tot'),F.h=v('f_h')??F.h,F.dd=v('f_dd')||F.dd,F.mm=v('f_mm')||F.mm,F.cap=v('f_cap')??F.cap,F.rate=v('f_rate')??F.rate,F.dur=v('f_dur')??F.dur,F.dfm=v('f_dfm')??F.dfm,F.ins=v('f_ins')??F.ins;
@@ -719,5 +777,5 @@ function dettes(){
 function delDebt(id){if(confirm('Supprimer cette dette ?')){S.debts=S.debts.filter(d=>d.id!=id);save();render()}}
 function payF(id){const d=S.debts.find(x=>x.id==id);if(!d)return;const own=d.dir=='owe';sheet('<h2 style="margin-top:0">'+(own?'Remboursement à ':'Remboursement de ')+esc(d.who)+'</h2><label>Montant (€)</label><input id="p_a" type="number" inputmode="decimal" step="0.01" value="'+dLeft(d)+'"><label>Date</label><input id="p_d" type="date" value="'+TD+'"><label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input id="p_b" type="checkbox" checked style="width:auto"> Ajouter aussi au budget ('+(own?'dépense':'revenu')+')</label><button class="go" onclick="savePay(\''+id+'\')">Enregistrer</button>')}
 function savePay(id){const d=S.debts.find(x=>x.id==id),a=parseFloat($('#p_a').value),dt=$('#p_d').value||TD;if(!d||!(a>0)){alert('Indique un montant positif.');return}const own=d.dir=='owe';d.pays=(d.pays||[]).concat({a:Math.min(a,dLeft(d)),d:dt});if($('#p_b').checked)S.tx.push({id:uid(),ct:Date.now(),label:'Remboursement '+(own?'à ':'de ')+d.who,date:dt,amt:own?-a:a,cat:own?'Dettes':'Revenu'});save();closeF();render()}
-$('#fab').onclick=openForm;mkLoad();notifCheck().then(()=>{if(S.tab=='home')render()});
+if(location.hash=='#trajets'){S.tab='tr';try{history.replaceState(null,'',location.pathname)}catch(e){}}timport();$('#fab').onclick=openForm;mkLoad();notifCheck().then(()=>{if(S.tab=='home')render()});
 render();

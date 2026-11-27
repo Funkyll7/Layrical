@@ -31,3 +31,8 @@ android {
     }
     lint { checkReleaseBuilds false; abortOnError false }
 }
+
+dependencies {
+    // reconnaissance « en voiture » + GPS économe (trajets 🚗)
+    implementation 'com.google.android.gms:play-services-location:21.3.0'
+}

@@ -115,3 +115,10 @@ Composants communs : `L1` (ligne d'une ligne : icône, titre, sous-titre, montan
   - Diagnostic de chaque essai (fenêtres et éléments vus à l'écran, étapes) : bouton « 📋 Copier le diagnostic du dernier essai » dans 🎵.
   - Durée totale ≈ 14 s.
 - Réglages 🎵 enregistrés à chaque changement (`musicAuto`), plus besoin de toucher « Enregistrer ».
+
+## 🚗 Trajets (onglet Trajets)
+- Détection : `Trips.java` s'abonne à la reconnaissance d'activité Google Play (`IN_VEHICLE` ENTER/EXIT → `TripReceiver`). En voiture : `TripService` (service de premier plan, type `location`) suit le GPS (~4 s, précision ≤ 35 m, pas compté sous le flou du GPS) et additionne les km. Fin : descendu de voiture + immobile 1 min 30, ou immobile 6 min, ou « Terminer » (notification / onglet). < 0,8 km : ignoré.
+- Communes de départ / arrivée : `Geocoder` d'Android. Trajet mis en attente (`Trips.pending`), notification « Trajet enregistré », puis récupéré par le site (`timport`, appelé à l'ouverture et par `nimport`) dans `S.trips` (synchronisé) et acquitté (`tripsAck`).
+- Autorisations demandées une par une (`Trips.ask`) : position + activité physique, position « Toujours autoriser », batterie sans restriction. Honor : Lancement d'applis → Gérer manuellement. Réabonnement au démarrage du téléphone (`AlarmReceiver`) et à chaque ouverture.
+- Site : 💼 sur un trajet = trajet de travail (surligné). Total km travail de l'année + montant déductible avec le barème kilométrique (arrêté du 27 mars 2023, inchangé en 2026), CV et électrique (+20 %) dans `S.tcfg`. Ajout / correction à la main avec +.
+
